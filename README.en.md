@@ -237,7 +237,7 @@ Double-click nexusmind.html
 # Option 2: Local server (recommended)
 python3 -m http.server 8080
 # Visit http://localhost:8080/nexusmind.html
-```bash
+```
 
 ## 7. Project Structure
 
