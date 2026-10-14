@@ -5,6 +5,7 @@
 **Make AI Agents Work Like a Team**
 
 An enterprise-grade AI agent orchestration and scheduling platform that visually assembles LLMs, virtual systems, robot roles, and business tasks into complete pipelines.
+access url：https://leixiangjian.github.io/nexus-mind/
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Status](https://img.shields.io/badge/status-beta-orange.svg)

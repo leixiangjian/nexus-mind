@@ -5,6 +5,7 @@
 **让 AI 智能体像员工一样协同工作**
 
 一个面向企业的 AI 智能体编排与调度平台，用可视化方式将大模型、虚拟系统、机器人角色与工作任务组装成完整业务流水线。
+项目访问地址：https://leixiangjian.github.io/nexus-mind/
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Status](https://img.shields.io/badge/status-beta-orange.svg)
