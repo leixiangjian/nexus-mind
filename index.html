@@ -1,0 +1,3825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusMind · 智慧大脑</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#05080f;--panel:#0b111d;--panel2:#111a2b;--panel3:#16213a;
+  --border:#1a2437;--border2:#28374f;
+  --txt:#e6edfa;--txt2:#8fa3c0;--txt3:#556a89;
+  --cyan:#22d3ee;--violet:#8b5cf6;--green:#10e08a;
+  --amber:#fbbf24;--red:#f43f5e;--pink:#ec4899;--teal:#14b8a6;--blue:#3b82f6;
+  --tech:#3b82f6;--tech-light:#60a5fa;--tech-glow:#93c5fd;
+  --bg-image: url('YOUR_BACKGROUND_IMAGE_URL');
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:13px;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 480px at 8% -8%,rgba(59,130,246,.08),transparent 62%),
+    radial-gradient(800px 480px at 96% 4%,rgba(96,165,250,.06),transparent 62%),
+    radial-gradient(700px 400px at 50% 112%,rgba(37,99,235,.05),transparent 60%);}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* 顶栏 */
+.topbar{height:58px;flex-shrink:0;display:flex;align-items:center;gap:14px;
+  padding:0 20px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(11,17,29,.98),rgba(8,12,21,.92));
+  backdrop-filter:blur(16px);z-index:50;position:relative;}
+.topbar::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(59,130,246,.6),rgba(96,165,250,.6),transparent);
+  animation:scanLine 4s ease-in-out infinite;}
+@keyframes scanLine{0%,100%{opacity:.4;transform:scaleX(.6)}50%{opacity:1;transform:scaleX(1)}}
+.brand{display:flex;align-items:center;gap:11px;flex-shrink:0;cursor:pointer;
+  padding:5px 10px 5px 5px;border-radius:10px;transition:.2s;}
+.brand:hover{background:rgba(22,33,58,.6);}
+.brand-orb{width:38px;height:38px;position:relative;display:flex;align-items:center;justify-content:center;}
+.brand-orb canvas{width:38px;height:38px;border-radius:10px;}
+.brand-orb::after{content:'';position:absolute;inset:-3px;border-radius:13px;
+  border:1px solid rgba(59,130,246,.5);animation:brainRipple 2.8s ease-out infinite;}
+@keyframes brainRipple{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+.brand-texts{display:flex;flex-direction:column;gap:1px;}
+.brand-name{font-size:13px;font-weight:750;letter-spacing:.3px;
+  background:linear-gradient(90deg,#e6edfa,#3b82f6,#60a5fa,#e6edfa);
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;animation:textFlow 6s linear infinite;}
+@keyframes textFlow{to{background-position:300% 50%}}
+.brand-status{font-size:9px;color:var(--txt3);letter-spacing:.6px;
+  display:flex;align-items:center;gap:4px;}
+.brand-status .dot{width:5px;height:5px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.4s infinite;}
+.brand-status.thinking .dot{background:var(--violet);box-shadow:0 0 6px var(--violet);}
+.brand-status.running .dot{background:var(--cyan);box-shadow:0 0 6px var(--cyan);}
+@keyframes blink{50%{opacity:.3}}
+
+.top-menu{display:flex;gap:4px;flex:1;overflow-x:auto;padding:0 10px;height:40px;align-items:center;}
+.top-menu::-webkit-scrollbar{height:0}
+.menu-item{display:flex;align-items:center;gap:7px;padding:7px 13px;
+  border-radius:8px;font-size:11.5px;font-weight:600;
+  background:transparent;border:1px solid transparent;
+  color:var(--txt3);cursor:pointer;transition:.2s;white-space:nowrap;}
+.menu-item:hover{background:rgba(22,33,58,.6);color:var(--txt2);}
+.menu-item.active{background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(96,165,250,.08));
+  border-color:rgba(59,130,246,.4);color:#fff;
+  box-shadow:0 0 14px rgba(59,130,246,.2);}
+
+.top-status{display:flex;align-items:center;gap:14px;flex-shrink:0;
+  padding-left:14px;border-left:1px solid var(--border);height:36px;}
+.ts-item{display:flex;flex-direction:column;gap:0px;}
+.ts-label{font-size:8px;color:var(--txt3);letter-spacing:.5px;}
+.ts-val{font-size:11.5px;font-weight:700;display:flex;align-items:center;gap:4px;}
+.ts-val.c{color:var(--cyan)}.ts-val.v{color:var(--violet)}
+.ts-val.g{color:var(--green)}.ts-val.a{color:var(--amber)}
+
+.main-container{flex:1;position:relative;min-height:0;overflow:hidden;}
+.home-view{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  transition:opacity .5s,transform .5s;overflow:hidden;
+  background:#030812;
+  background-image: var(--bg-image);
+  background-size: cover;background-position: center;background-repeat: no-repeat;}
+.home-view.hidden{opacity:0;transform:scale(.94);pointer-events:none;}
+.home-view::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center, rgba(3,8,18,.35) 0%, rgba(3,8,18,.75) 75%, rgba(3,8,18,.95) 100%);
+  z-index:1;}
+#bgScene{position:absolute;inset:0;width:100%;height:100%;z-index:2;opacity:.75;mix-blend-mode:screen;}
+.home-view::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:radial-gradient(ellipse at center, transparent 30%, rgba(3,8,18,.6) 80%, rgba(3,8,18,.9) 100%);}
+.brain-canvas-wrap{position:relative;width:1180px;height:740px;
+  display:flex;align-items:center;justify-content:center;z-index:4;}
+#techFace{position:absolute;inset:0;width:1180px;height:740px;z-index:4;
+  filter:drop-shadow(0 0 30px rgba(96,165,250,.4));pointer-events:none;}
+
+.center-title{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);
+  z-index:7;text-align:center;pointer-events:none;}
+.center-title .t1{font-size:18px;font-weight:800;letter-spacing:8px;color:#bfdbfe;
+  text-shadow:0 0 14px rgba(96,165,250,1),0 0 30px rgba(59,130,246,.6);}
+.center-title .t2{font-size:11px;color:rgba(147,197,253,.7);letter-spacing:5px;margin-top:6px;
+  font-family:ui-monospace,monospace;}
+
+.ability-ring{position:absolute;inset:0;pointer-events:none;z-index:6;}
+.ability-card{position:absolute;width:230px;
+  pointer-events:auto;cursor:pointer;
+  transition:.35s cubic-bezier(.2,.9,.3,1.2);
+  transform:translate(-50%,-50%);
+  background:linear-gradient(160deg,rgba(10,18,32,.96),rgba(5,10,20,.98));
+  border:1px solid rgba(59,130,246,.4);
+  border-radius:12px;padding:13px 15px;
+  box-shadow:0 8px 30px rgba(0,0,0,.7),0 0 22px rgba(59,130,246,.14);
+  overflow:hidden;}
+.ability-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+  background:linear-gradient(90deg,transparent,var(--card-color,#60a5fa),transparent);}
+.ability-card:hover{border-color:var(--card-color,#60a5fa);
+  transform:translate(-50%,-50%) scale(1.07);
+  box-shadow:0 14px 38px rgba(0,0,0,.8),0 0 48px var(--card-glow,rgba(96,165,250,.55));}
+.ability-card .ac-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.ability-card .ac-icon{width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;
+  background:linear-gradient(135deg,var(--card-color,#60a5fa),rgba(59,130,246,.5));
+  box-shadow:0 0 16px var(--card-glow,rgba(96,165,250,.55));}
+.ability-card .ac-title{font-size:13px;font-weight:750;color:#fff;letter-spacing:.3px;}
+.ability-card .ac-sub{font-size:9.5px;color:rgba(147,197,253,.75);margin-top:3px;letter-spacing:.4px;}
+.ability-card .ac-desc{font-size:10.5px;color:var(--txt2);line-height:1.55;}
+.ability-card .ac-idx{position:absolute;top:10px;right:12px;
+  font-size:22px;font-weight:800;font-family:ui-monospace,monospace;
+  color:rgba(59,130,246,.12);line-height:1;}
+
+.floating-brain{position:fixed;right:20px;top:74px;width:200px;
+  z-index:60;display:flex;flex-direction:column;gap:10px;
+  opacity:0;transform:translateX(30px);pointer-events:none;
+  transition:opacity .5s cubic-bezier(.2,.9,.3,1.2),transform .5s cubic-bezier(.2,.9,.3,1.2);}
+.floating-brain.show{opacity:1;transform:translateX(0);pointer-events:auto;}
+.fb-card{padding:12px;border-radius:15px;
+  background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(8,12,21,1));
+  border:1px solid rgba(59,130,246,.4);
+  box-shadow:0 18px 46px rgba(0,0,0,.7),0 0 40px rgba(59,130,246,.15);
+  backdrop-filter:blur(14px);animation:fbFloat 6s ease-in-out infinite;
+  cursor:grab;user-select:none;}
+.fb-card:active{cursor:grabbing}
+@keyframes fbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.fb-brain-wrap{position:relative;width:100%;height:130px;
+  display:flex;align-items:center;justify-content:center;}
+#miniBrain{width:130px;height:130px;filter:drop-shadow(0 0 22px rgba(96,165,250,.5));}
+.fb-brain-wrap::after{content:'';position:absolute;width:80px;height:80px;border-radius:50%;
+  border:1px solid rgba(59,130,246,.35);animation:brainRipple 2.6s ease-out infinite;}
+.fb-title{font-size:11.5px;font-weight:700;text-align:center;margin-top:2px;
+  display:flex;align-items:center;justify-content:center;gap:5px;}
+.fb-title .live{width:6px;height:6px;border-radius:50%;background:#3b82f6;
+  box-shadow:0 0 8px #3b82f6;animation:blink 1.4s infinite;}
+.fb-status{font-size:9.5px;color:var(--txt3);text-align:center;margin-top:3px;letter-spacing:.4px;}
+.fb-hint{padding:12px 13px;border-radius:13px;
+  background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(8,12,21,.98));
+  border:1px solid rgba(59,130,246,.2);backdrop-filter:blur(12px);
+  box-shadow:0 14px 36px rgba(0,0,0,.6);position:relative;overflow:hidden;
+  cursor:grab;user-select:none;}
+.fb-hint:active{cursor:grabbing}
+.fb-hint::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,#3b82f6,transparent);
+  animation:scanLine 3s ease-in-out infinite;}
+.fb-hint-title{font-size:10px;font-weight:700;color:var(--tech-light);
+  letter-spacing:.5px;margin-bottom:7px;text-transform:uppercase;
+  display:flex;align-items:center;gap:5px;}
+.fb-hint-title::before{content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--tech);box-shadow:0 0 6px var(--tech);animation:blink 1.4s infinite;}
+.fb-hint-body{font-size:10.5px;color:var(--txt2);line-height:1.7;}
+.fb-hint-body b{color:#fff;}
+.fb-toggle{position:absolute;top:8px;right:10px;width:20px;height:20px;
+  border-radius:5px;border:1px solid var(--border2);background:rgba(17,26,43,.8);
+  color:var(--txt3);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:11px;transition:.2s;z-index:2;}
+.fb-toggle:hover{color:var(--txt);border-color:var(--tech);}
+.floating-brain.collapsed .fb-card,
+.floating-brain.collapsed .fb-hint{display:none;}
+.floating-brain.collapsed{width:44px;}
+.floating-brain.collapsed .fb-toggle{position:relative;top:0;right:0;width:44px;height:44px;
+  border-radius:12px;background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(96,165,250,.15));
+  border-color:rgba(59,130,246,.5);color:var(--tech-light);font-size:16px;cursor:grab;
+  box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 20px rgba(59,130,246,.3);}
+
+.feature-view{position:absolute;inset:0;display:flex;flex-direction:column;
+  opacity:0;transform:scale(1.02);pointer-events:none;
+  transition:opacity .5s,transform .5s;}
+.feature-view.active{opacity:1;transform:scale(1);pointer-events:auto;}
+.feature-content{flex:1;min-height:0;display:flex;overflow:hidden;}
+.feature-view.fullscreen{position:fixed;inset:0;z-index:100;background:var(--bg);}
+
+.module{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden;}
+.module.active{display:flex;animation:modIn .4s ease;}
+@keyframes modIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.mod-head{height:56px;flex-shrink:0;display:flex;align-items:center;gap:14px;
+  padding:0 20px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(11,17,29,.6),rgba(8,12,21,.3));position:relative;}
+.mod-head::after{content:'';position:absolute;left:20px;right:20px;bottom:0;height:1px;
+  background:linear-gradient(90deg,rgba(59,130,246,.4),transparent 40%);}
+.mod-icon{width:32px;height:32px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(96,165,250,.1));
+  border:1px solid rgba(59,130,246,.35);color:var(--tech-light);
+  box-shadow:0 0 16px rgba(59,130,246,.15);}
+.mod-title{font-size:14px;font-weight:750;letter-spacing:.3px;}
+.mod-desc{font-size:10.5px;color:var(--txt3);margin-top:2px;}
+.mod-head .right{margin-left:auto;display:flex;align-items:center;gap:9px;}
+
+.sub-tabs{display:flex;gap:5px;padding:0 20px;height:42px;align-items:center;
+  border-bottom:1px solid var(--border);flex-shrink:0;background:rgba(8,12,21,.4);}
+.sub-tab{padding:6px 14px;border-radius:7px;font-size:11px;font-weight:600;
+  color:var(--txt3);cursor:pointer;transition:.2s;border:1px solid transparent;}
+.sub-tab:hover{background:rgba(22,33,58,.6);color:var(--txt2);}
+.sub-tab.active{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.4);color:#60a5fa;}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
+  border-radius:8px;border:1px solid var(--border2);background:var(--panel2);
+  color:var(--txt2);font-size:12px;cursor:pointer;transition:.2s;
+  font-family:inherit;font-weight:500;white-space:nowrap;}
+.btn:hover{background:var(--panel3);color:var(--txt);border-color:#3a4d6d;
+  transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3);}
+.btn svg{width:13px;height:13px}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#3b82f6);border:none;color:#fff;
+  font-weight:600;box-shadow:0 4px 16px rgba(59,130,246,.3);}
+.btn-primary:hover{filter:brightness(1.15);}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669);border:none;color:#fff;font-weight:600;
+  box-shadow:0 4px 16px rgba(16,185,129,.3);}
+.btn-success:hover{filter:brightness(1.15);}
+.btn-warn{border-color:rgba(251,191,36,.4);color:#fcd34d;background:rgba(251,191,36,.07);}
+.btn-warn:hover{background:rgba(251,191,36,.18);}
+.btn-danger{border-color:rgba(244,63,94,.4);color:#ff8ba0;background:rgba(244,63,94,.07);}
+.btn-danger:hover{background:rgba(244,63,94,.18);}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:7px}
+.btn:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.5);transform:none!important;}
+
+.split{flex:1;display:flex;min-height:0;overflow:hidden}
+.side{width:260px;flex-shrink:0;border-right:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(11,17,29,.7),rgba(8,12,21,.85));
+  display:flex;flex-direction:column;overflow:hidden;}
+.side-head{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;gap:8px;background:rgba(8,12,21,.5);}
+.side-title{font-size:11.5px;font-weight:700;flex:1;letter-spacing:.3px;
+  display:flex;align-items:center;gap:7px;}
+.side-title::before{content:'';width:4px;height:4px;border-radius:50%;
+  background:var(--tech);box-shadow:0 0 6px var(--tech);}
+.side-add{width:24px;height:24px;border-radius:6px;border:1px solid var(--border2);
+  background:var(--panel2);color:var(--txt2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:.2s;}
+.side-add:hover{background:rgba(59,130,246,.15);color:var(--tech-light);}
+.side-body{flex:1;overflow-y:auto;padding:9px;min-height:0}
+.center{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.center-head{height:42px;flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:0 16px;border-bottom:1px solid var(--border);background:rgba(8,12,21,.4);}
+.center-body{flex:1;overflow-y:auto;padding:16px;min-height:0}
+
+.item{padding:10px;border-radius:10px;border:1px solid var(--border);
+  background:rgba(17,26,43,.5);margin-bottom:7px;cursor:pointer;transition:.2s;
+  position:relative;overflow:hidden;}
+.item:hover{border-color:var(--border2);background:rgba(22,33,58,.75);transform:translateX(2px);}
+.item.sel{border-color:rgba(59,130,246,.5);
+  background:linear-gradient(180deg,rgba(59,130,246,.09),rgba(17,26,43,.7));}
+.item-top{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+.item-ic{width:26px;height:26px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;}
+.item-name{font-size:11.5px;font-weight:650;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.item-meta{font-size:9.5px;color:var(--txt3);display:flex;gap:8px;}
+
+.status-pill{font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:20px;
+  flex-shrink:0;display:flex;align-items:center;gap:4px;}
+.status-pill.passed,.status-pill.enabled,.status-pill.done,.status-pill.idle
+  {background:rgba(16,224,138,.14);color:#4ef0ac}
+.status-pill.disabled,.status-pill.inactive,.status-pill.draft
+  {background:rgba(143,163,192,.14);color:#8fa3c0}
+.status-pill.running,.status-pill.paused,.status-pill.testing
+  {background:rgba(251,191,36,.14);color:#fcd34d}
+.status-pill.testing .dot,.status-pill.running .dot{animation:blink .6s infinite}
+.status-pill.failed,.status-pill.error
+  {background:rgba(244,63,94,.14);color:#ff8ba0}
+.status-pill.busy{background:rgba(34,211,238,.14);color:#5ee0f5}
+
+.card{padding:14px 16px;border-radius:12px;
+  background:linear-gradient(180deg,rgba(18,26,43,.75),rgba(13,19,32,.85));
+  border:1px solid var(--border);margin-bottom:12px;}
+.card-title{font-size:11.5px;font-weight:700;margin-bottom:11px;
+  display:flex;align-items:center;gap:8px;}
+.card-title .dot{width:5px;height:5px;border-radius:50%;background:var(--tech);
+  box-shadow:0 0 8px var(--tech)}
+.card-title .right{margin-left:auto;font-size:9.5px;color:var(--txt3);
+  font-weight:500;font-family:ui-monospace,monospace}
+
+.field{margin-bottom:11px}
+.field label{display:block;font-size:9px;color:var(--txt3);margin-bottom:5px;
+  font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.field input,.field textarea,.field select{
+  width:100%;padding:7px 10px;border-radius:7px;
+  background:rgba(5,8,15,.85);border:1px solid var(--border2);
+  color:var(--txt);font-size:11px;font-family:inherit;outline:none;
+  transition:.2s;line-height:1.5;}
+.field textarea{resize:vertical;min-height:60px;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px}
+.field input:focus,.field textarea:focus,.field select:focus{
+  border-color:var(--tech);box-shadow:0 0 0 3px rgba(59,130,246,.15);}
+.field input[readonly]{opacity:.75;cursor:not-allowed;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+
+.chip{display:inline-flex;align-items:center;gap:4px;
+  font-size:9.5px;padding:3px 8px;border-radius:6px;font-weight:650;
+  background:rgba(139,92,246,.13);color:#b79cff;
+  border:1px solid rgba(139,92,246,.2);}
+.chip.cyan{background:rgba(34,211,238,.13);color:#5ee0f5;border-color:rgba(34,211,238,.22)}
+.chip.green{background:rgba(16,224,138,.13);color:#4ef0ac;border-color:rgba(16,224,138,.22)}
+.chip.blue{background:rgba(59,130,246,.13);color:#60a5fa;border-color:rgba(59,130,246,.22)}
+.chip.amber{background:rgba(251,191,36,.13);color:#fcd34d;border-color:rgba(251,191,36,.22)}
+
+.empty{padding:40px 20px;text-align:center;color:var(--txt3)}
+.empty .ic{width:56px;height:56px;border-radius:16px;margin:0 auto 12px;
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(96,165,250,.1));
+  border:1px solid rgba(59,130,246,.2);color:var(--tech-light);}
+.empty .tt{font-size:12.5px;font-weight:700;color:var(--txt2);margin-bottom:6px}
+.empty .dd{font-size:10.5px;line-height:1.7}
+
+.perm-row{display:flex;align-items:center;gap:8px;padding:7px 10px;
+  border-radius:6px;background:rgba(17,26,43,.55);
+  border:1px solid var(--border);font-size:10.5px;margin-bottom:5px;}
+.perm-row .pi{width:13px;text-align:center;font-size:10px;flex-shrink:0}
+.perm-row input.pt{flex:1;color:var(--txt2);font-family:ui-monospace,monospace;
+  font-size:10.5px;background:transparent;border:none;outline:none;}
+.perm-row .pv{font-size:8.5px;padding:2px 7px;border-radius:4px;font-weight:700;
+  flex-shrink:0;}
+.perm-row .pv.allow{background:rgba(16,224,138,.13);color:#4ef0ac}
+.perm-row .pv.block{background:rgba(244,63,94,.13);color:#ff8ba0}
+.perm-del{width:22px;height:22px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);
+  color:#ff8ba0;cursor:pointer;font-size:11px;}
+.perm-del:hover{background:rgba(244,63,94,.25);}
+
+.tag-list{display:flex;flex-direction:column;gap:6px;}
+.tag-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
+  background:rgba(17,26,43,.6);border:1px solid var(--border);font-size:10.5px;}
+.tag-item .tag-ic{width:24px;height:24px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.tag-item .tag-info{flex:1;min-width:0;}
+.tag-item .tag-name{font-size:11px;font-weight:650;color:var(--txt);}
+.tag-item .tag-desc{font-size:9.5px;color:var(--txt3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tag-item .tag-toggle{width:30px;height:16px;border-radius:16px;background:rgba(143,163,192,.25);
+  position:relative;cursor:pointer;flex-shrink:0;transition:.2s;}
+.tag-item .tag-toggle::after{content:'';position:absolute;top:2px;left:2px;
+  width:12px;height:12px;border-radius:50%;background:#8fa3c0;transition:.2s;}
+.tag-item .tag-toggle.on{background:linear-gradient(90deg,#2563eb,#3b82f6);}
+.tag-item .tag-toggle.on::after{left:16px;background:#fff;}
+.add-tag-btn{width:100%;padding:7px;border-radius:7px;border:1px dashed var(--border2);
+  background:transparent;color:var(--txt3);cursor:pointer;font-size:10.5px;
+  transition:.2s;margin-top:6px;font-family:inherit;}
+.add-tag-btn:hover{border-color:var(--tech);color:var(--tech-light);background:rgba(59,130,246,.06);}
+
+.tc-item{padding:9px 11px;border-radius:8px;
+  background:rgba(17,26,43,.5);border:1px solid var(--border);
+  transition:.3s;margin-bottom:6px;}
+.tc-item.running{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.08);}
+.tc-item.pass{border-color:rgba(16,224,138,.4);background:rgba(16,224,138,.06)}
+.tc-item.fail{border-color:rgba(244,63,94,.4);background:rgba(244,63,94,.06)}
+.tc-top{display:flex;align-items:center;gap:8px}
+.tc-ic{width:18px;height:18px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:800;
+  background:rgba(143,163,192,.14);color:#8fa3c0;}
+.tc-item.running .tc-ic{background:rgba(59,130,246,.16);color:#60a5fa}
+.tc-item.pass .tc-ic{background:rgba(16,224,138,.16);color:#4ef0ac}
+.tc-item.fail .tc-ic{background:rgba(244,63,94,.16);color:#ff8ba0}
+.tc-name{font-size:11px;font-weight:650;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-dur{font-size:9.5px;color:var(--txt3);font-family:ui-monospace,monospace;flex-shrink:0}
+.tc-desc{font-size:9.5px;color:var(--txt3);margin-top:4px;
+  padding-left:26px;line-height:1.5;}
+
+/* 画布 */
+.canvas-toolbar{height:42px;flex-shrink:0;display:flex;align-items:center;gap:7px;
+  padding:0 14px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(11,17,29,.6),rgba(8,12,21,.4));}
+.ct-group{display:flex;align-items:center;gap:5px}
+.ct-sep{width:1px;height:16px;background:var(--border);margin:0 4px}
+.ct-btn{display:flex;align-items:center;justify-content:center;gap:5px;
+  height:30px;padding:0 11px;border-radius:7px;
+  border:1px solid var(--border);background:rgba(17,26,43,.6);
+  color:var(--txt2);cursor:pointer;transition:.2s;
+  font-size:11px;font-family:inherit;font-weight:500;}
+.ct-btn:hover{background:var(--panel3);color:var(--txt);border-color:var(--border2);}
+.ct-btn.on{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.45);color:#60a5fa}
+.ct-stats{margin-left:auto;display:flex;gap:14px;font-size:10.5px;color:var(--txt3)}
+.ct-stats b{color:var(--txt2);font-weight:700;font-family:ui-monospace,monospace;
+  font-size:11.5px;margin-left:3px}
+
+.canvas-scroll{flex:1;min-height:0;overflow:auto;position:relative;background:#050810;
+  cursor:grab;}
+.canvas-scroll.grabbing{cursor:grabbing}
+.canvas{position:relative;width:2000px;height:1000px;
+  transform-origin:0 0;
+  background-image:radial-gradient(circle,rgba(52,72,105,.28) 1.2px,transparent 1.2px);
+  background-size:24px 24px;}
+.canvas.no-grid{background-image:none}
+
+.edge-svg{position:absolute;top:0;left:0;width:2000px;height:1000px;
+  pointer-events:none;overflow:visible;z-index:1;}
+.edge{fill:none;stroke:#3b82f6;stroke-width:2.2;
+  filter:drop-shadow(0 0 4px rgba(59,130,246,.7));
+  stroke-linecap:round;transition:stroke .2s;}
+.edge.sel{stroke:#93c5fd;stroke-width:3;
+  filter:drop-shadow(0 0 8px rgba(147,197,253,.9));}
+.edge-hit{fill:none;stroke:transparent;stroke-width:18;
+  pointer-events:stroke;cursor:pointer;}
+
+.node-layer{position:absolute;inset:0;z-index:2}
+.gnode{position:absolute;width:180px;height:84px;border-radius:11px;
+  background:linear-gradient(180deg,#172237,#111a2b);
+  border:1.5px solid #22314a;display:flex;flex-direction:column;
+  cursor:grab;user-select:none;transition:box-shadow .2s,border-color .2s;z-index:2;}
+.gnode:hover{border-color:#31456a;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.gnode.sel{border-color:var(--tech-light);
+  box-shadow:0 0 0 3px rgba(59,130,246,.25),0 8px 26px rgba(59,130,246,.35);z-index:10;}
+.gnode.dragging{cursor:grabbing;z-index:100;box-shadow:0 16px 44px rgba(0,0,0,.7)}
+.gnode.auto{border-left:3px solid var(--cyan)}
+.gnode.robot{border-left:3px solid var(--green)}
+.gnode-head{display:flex;gap:8px;padding:9px 11px 4px;align-items:center}
+.gnode-ic{width:24px;height:24px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.gnode-ttl{flex:1;min-width:0}
+.gnode-name{font-size:11.5px;font-weight:650;line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gnode-type{font-size:8.5px;color:var(--txt3);letter-spacing:.4px;margin-top:2px}
+.gnode-info{padding:0 11px;font-size:9px;margin-top:3px;
+  display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.gnode-badge{font-size:8.5px;padding:2px 7px;border-radius:4px;font-weight:700;white-space:nowrap;}
+.gnode-badge.auto{background:rgba(34,211,238,.16);color:#5ee0f5}
+.gnode-badge.robot{background:rgba(16,224,138,.16);color:#4ef0ac}
+.port{position:absolute;width:14px;height:14px;border-radius:50%;
+  background:#16213a;border:2px solid #4a5f85;top:50%;margin-top:-7px;
+  cursor:crosshair;transition:.16s;z-index:5;}
+.port-in{left:-8px}
+.port-out{right:-8px}
+.port:hover,.port.hot{background:var(--tech);border-color:var(--tech);
+  box-shadow:0 0 14px rgba(59,130,246,.9);transform:scale(1.3)}
+.canvas-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;pointer-events:none;opacity:0;transition:.4s;z-index:5;}
+.canvas-empty.show{opacity:1}
+.canvas-empty .ic{width:70px;height:70px;border-radius:20px;
+  background:linear-gradient(135deg,rgba(59,130,246,.13),rgba(96,165,250,.13));
+  border:1px solid rgba(59,130,246,.3);display:flex;align-items:center;
+  justify-content:center;font-size:30px;color:var(--tech-light);}
+.canvas-empty .tt{font-size:14px;font-weight:700}
+.canvas-empty .dd{font-size:11px;color:var(--txt3);text-align:center;line-height:1.7}
+
+.node-toolbar{width:230px;flex-shrink:0;border-right:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(11,17,29,.85),rgba(8,12,21,.95));
+  display:flex;flex-direction:column;overflow:hidden;}
+.nt-head{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.nt-title{font-size:11.5px;font-weight:700;margin-bottom:4px;}
+.nt-sub{font-size:9.5px;color:var(--txt3);line-height:1.5}
+.nt-search{margin:9px 12px 6px;padding:7px 10px;border-radius:7px;
+  background:rgba(5,8,15,.85);border:1px solid var(--border2);
+  color:var(--txt);font-size:11px;font-family:inherit;outline:none;flex-shrink:0;}
+.nt-search:focus{border-color:var(--tech);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.nt-body{flex:1;overflow-y:auto;padding:6px 10px 12px;min-height:0;}
+.nt-section{margin-bottom:14px;}
+.nt-section-head{font-size:9px;color:var(--txt3);letter-spacing:1.1px;font-weight:700;
+  padding:6px 6px 8px;text-transform:uppercase;display:flex;align-items:center;gap:6px;
+  border-bottom:1px solid rgba(26,36,55,.6);margin-bottom:8px;}
+.nt-section-head .indicator{width:6px;height:6px;border-radius:2px;}
+.nt-section-head .indicator.core{background:#60a5fa;box-shadow:0 0 6px #60a5fa;}
+.nt-section-head .indicator.task{background:#a78bfa;box-shadow:0 0 6px #a78bfa;}
+.nt-section-head .count{font-size:8.5px;padding:1px 5px;border-radius:8px;
+  background:rgba(143,163,192,.14);color:#8fa3c0;font-weight:700;letter-spacing:0;margin-left:auto;}
+.node-tool-item{display:flex;align-items:center;gap:9px;padding:9px;
+  border-radius:9px;border:1px solid var(--border);
+  background:rgba(17,26,43,.5);margin-bottom:5px;
+  cursor:grab;transition:.2s;user-select:none;position:relative;overflow:hidden;}
+.node-tool-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--item-color, var(--tech));opacity:.7;}
+.node-tool-item:hover{background:rgba(22,33,58,.9);border-color:var(--border2);
+  transform:translateX(3px);}
+.node-tool-ic{width:28px;height:28px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.node-tool-info{flex:1;min-width:0}
+.node-tool-name{font-size:11px;font-weight:650;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.node-tool-meta{font-size:8.5px;color:var(--txt3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nt-tip{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;
+  font-size:9px;color:var(--txt3);line-height:1.6;}
+
+.drawer{position:relative;width:0;flex-shrink:0;transition:width .35s cubic-bezier(.2,.9,.3,1.2);
+  overflow:hidden;background:linear-gradient(180deg,rgba(11,17,29,.9),rgba(8,12,21,.95));
+  border-left:1px solid var(--border);}
+.drawer.open{width:330px;}
+.drawer-inner{width:330px;display:flex;flex-direction:column;height:100%;}
+.drawer-head{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;gap:8px;background:rgba(8,12,21,.5);}
+.drawer-title{font-size:11.5px;font-weight:700;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.drawer-close{width:22px;height:22px;border-radius:5px;border:1px solid var(--border2);
+  background:transparent;color:var(--txt3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:11px;}
+.drawer-close:hover{color:var(--txt);border-color:var(--tech);}
+.drawer-body{flex:1;overflow-y:auto;padding:14px;min-height:0}
+.drawer-tab{position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:32px;height:110px;background:linear-gradient(180deg,rgba(15,23,42,.95),rgba(8,12,21,.95));
+  border:1px solid var(--border);border-left:none;border-radius:0 10px 10px 0;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:6px;padding:8px 0;transition:.2s;z-index:5;}
+.drawer-tab:hover{background:rgba(30,58,138,.5);border-color:rgba(59,130,246,.5);}
+.drawer-tab-icon{font-size:14px;color:var(--tech-light);}
+.drawer-tab-text{font-size:9px;font-weight:700;color:var(--txt3);
+  writing-mode:vertical-rl;letter-spacing:1.5px;}
+.drawer.open .drawer-tab{display:none;}
+
+.work-list-bar{height:76px;flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:0 16px;border-top:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(8,12,21,.95),rgba(11,17,29,.98));
+  overflow-x:auto;overflow-y:hidden;position:relative;}
+.work-list-bar::before{content:'';position:absolute;top:-1px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(59,130,246,.5),rgba(96,165,250,.5),transparent);}
+.work-list-bar::-webkit-scrollbar{height:6px}
+.work-list-bar::-webkit-scrollbar-thumb{background:#1f2c44;border-radius:3px}
+.wlb-label{flex-shrink:0;font-size:10px;font-weight:700;color:var(--txt3);
+  letter-spacing:1.2px;writing-mode:vertical-rl;text-orientation:upright;
+  padding:0 4px;height:54px;display:flex;align-items:center;text-transform:uppercase;}
+.wlb-card{flex-shrink:0;width:230px;padding:9px 12px;border-radius:10px;
+  background:linear-gradient(180deg,rgba(18,26,43,.8),rgba(13,19,32,.9));
+  border:1px solid var(--border);cursor:pointer;
+  transition:.25s;position:relative;overflow:hidden;height:56px;
+  display:flex;flex-direction:column;justify-content:center;}
+.wlb-card:hover{border-color:rgba(59,130,246,.5);transform:translateY(-2px);}
+.wlb-card.active{border-color:rgba(59,130,246,.65);
+  background:linear-gradient(180deg,rgba(59,130,246,.12),rgba(13,19,32,.9));}
+.wlb-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--w-color,var(--tech));opacity:.85;}
+.wlb-top{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.wlb-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:currentColor;}
+.wlb-name{font-size:11.5px;font-weight:650;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wlb-status{font-size:8.5px;padding:1.5px 6px;border-radius:20px;font-weight:700;flex-shrink:0;}
+.wlb-status.inactive{background:rgba(143,163,192,.14);color:#8fa3c0}
+.wlb-status.active{background:rgba(34,211,238,.14);color:#5ee0f5}
+.wlb-status.running{background:rgba(251,191,36,.14);color:#fcd34d}
+.wlb-status.done{background:rgba(16,224,138,.14);color:#4ef0ac}
+.wlb-prog{display:flex;align-items:center;gap:6px;}
+.wlb-bar{flex:1;height:4px;border-radius:3px;background:rgba(143,163,192,.15);overflow:hidden;}
+.wlb-bar i{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,#3b82f6,#60a5fa);transition:width .6s;}
+.wlb-meta{font-size:9px;color:var(--txt3);font-family:ui-monospace,monospace;flex-shrink:0;}
+
+/* ========== 智能分配 & 监控：自适应画布 ========== */
+.flow-canvas-wrap{flex:1;min-height:0;overflow:hidden;position:relative;background:#050810;
+  cursor:grab;}
+.flow-canvas-wrap.grabbing{cursor:grabbing}
+.flow-canvas{position:absolute;left:0;top:0;
+  width:1800px;height:900px;transform-origin:0 0;
+  background-image:radial-gradient(circle,rgba(52,72,105,.28) 1.2px,transparent 1.2px);
+  background-size:24px 24px;}
+.flow-svg{position:absolute;inset:0;width:1800px;height:900px;
+  pointer-events:none;overflow:visible;}
+.flow-node{position:absolute;width:190px;min-height:84px;border-radius:11px;
+  background:linear-gradient(180deg,#172237,#111a2b);
+  border:1.5px solid #22314a;display:flex;flex-direction:column;
+  padding:10px;transition:.3s;z-index:2;
+  box-shadow:0 6px 20px rgba(0,0,0,.5);}
+.flow-node.auto{border-left:3px solid var(--cyan)}
+.flow-node.robot{border-left:3px solid var(--green)}
+.flow-node.assigned{border-color:rgba(16,224,138,.6);
+  background:linear-gradient(180deg,rgba(16,224,138,.1),#111a2b);
+  box-shadow:0 0 0 2px rgba(16,224,138,.15),0 6px 20px rgba(16,224,138,.15);}
+.flow-node.pending{border-color:rgba(251,191,36,.5);
+  background:linear-gradient(180deg,rgba(251,191,36,.1),#111a2b);}
+.flow-node.running{border-color:var(--tech);
+  box-shadow:0 0 0 3px rgba(59,130,246,.2),0 0 30px rgba(59,130,246,.4);
+  animation:nodePulse 1.5s ease-in-out infinite;}
+.flow-node.done{border-color:rgba(16,224,138,.5);}
+.flow-node.err{border-color:var(--red);
+  background:linear-gradient(180deg,rgba(244,63,94,.12),#111a2b);}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(59,130,246,.2),0 0 24px rgba(59,130,246,.35)}
+  50%{box-shadow:0 0 0 5px rgba(59,130,246,.3),0 0 40px rgba(59,130,246,.55)}}
+.fn-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.fn-ic{width:24px;height:24px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.fn-name{font-size:11px;font-weight:650;line-height:1.2;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fn-type{font-size:8.5px;color:var(--txt3);margin-bottom:6px}
+.fn-role{font-size:8.5px;padding:2px 7px;border-radius:4px;font-weight:700;
+  background:rgba(139,92,246,.16);color:#b79cff;
+  display:inline-flex;align-items:center;gap:4px;margin-bottom:6px}
+.fn-bot-slot{margin-top:auto;padding-top:6px;border-top:1px dashed rgba(52,72,105,.6);}
+.fn-bot-assigned{display:flex;align-items:center;gap:6px;padding:5px 7px;
+  border-radius:7px;background:rgba(16,224,138,.08);
+  border:1px solid rgba(16,224,138,.3);}
+.fn-bot-av{width:20px;height:20px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:8.5px;font-weight:800;color:#06101c}
+.fn-bot-name{font-size:9.5px;font-weight:650;color:#4ef0ac}
+.fn-bot-auto{padding:5px 7px;border-radius:7px;
+  background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.3);
+  font-size:9px;color:#5ee0f5;text-align:center;font-weight:600}
+.fn-bot-pending{padding:5px 7px;border-radius:7px;
+  background:rgba(251,191,36,.08);border:1px dashed rgba(251,191,36,.4);
+  font-size:9px;color:#fcd34d;text-align:center;font-weight:600;
+  animation:blink 1.4s infinite}
+
+/* 监控 */
+.mon-canvas{position:absolute;left:0;top:0;
+  width:1400px;height:640px;transform-origin:0 0;}
+.mon-node{position:absolute;width:160px;min-height:66px;border-radius:10px;
+  background:linear-gradient(180deg,#172237,#111a2b);
+  border:1.5px solid #22314a;display:flex;flex-direction:column;
+  padding:8px 10px;transition:.3s;z-index:2;}
+.mon-node.auto{border-left:3px solid var(--cyan)}
+.mon-node.robot{border-left:3px solid var(--green)}
+.mon-node.run{border-color:var(--tech);
+  box-shadow:0 0 0 3px rgba(59,130,246,.18),0 0 30px rgba(59,130,246,.4);
+  animation:nodePulse 1.5s ease-in-out infinite;}
+.mon-node.ok{border-color:rgba(16,224,138,.6);
+  background:linear-gradient(180deg,rgba(16,224,138,.1),#111a2b);}
+.mon-node.err{border-color:var(--red);
+  background:linear-gradient(180deg,rgba(244,63,94,.12),#111a2b);}
+.mon-node.paused{border-color:var(--amber);
+  background:linear-gradient(180deg,rgba(251,191,36,.12),#111a2b);}
+.bot-token{position:absolute;width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:#06101c;z-index:20;opacity:0;
+  border:2.5px solid rgba(255,255,255,.4);
+  box-shadow:0 4px 18px rgba(0,0,0,.65),0 0 26px currentColor;
+  transition:left 1s cubic-bezier(.4,.05,.25,1),
+             top 1s cubic-bezier(.4,.05,.25,1),opacity .4s;}
+.bot-token.visible{opacity:1}
+.bot-token::after{content:'';position:absolute;inset:-5px;border-radius:50%;
+  border:2px solid currentColor;opacity:.5;
+  animation:tokenRing 1.8s ease-out infinite;}
+@keyframes tokenRing{0%{transform:scale(.7);opacity:.7}100%{transform:scale(1.6);opacity:0}}
+
+.mon-bot-row{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:8px;background:rgba(17,26,43,.5);
+  border:1px solid var(--border);margin-bottom:5px;transition:.25s;}
+.mon-bot-row.active{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.05);}
+.mon-bot-row.done{border-color:rgba(16,224,138,.3);background:rgba(16,224,138,.04);}
+.mbr-av{width:24px;height:24px;border-radius:7px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9.5px;font-weight:800;color:#06101c}
+.mbr-info{flex:1;min-width:0}
+.mbr-name{font-size:10.5px;font-weight:650;line-height:1.2}
+.mbr-task{font-size:9px;color:var(--txt3);margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mbr-st{font-size:8.5px;font-weight:700;padding:2px 6px;
+  border-radius:20px;flex-shrink:0;}
+.mbr-st.idle{background:rgba(143,163,192,.12);color:#8fa3c0}
+.mbr-st.run{background:rgba(59,130,246,.14);color:#60a5fa}
+.mbr-st.done{background:rgba(16,224,138,.13);color:#4ef0ac}
+.mbr-st.err{background:rgba(244,63,94,.14);color:#ff8ba0}
+.mbr-st.paused{background:rgba(251,191,36,.14);color:#fcd34d}
+
+.console{flex:1;overflow-y:auto;padding:10px 12px;min-height:0;
+  font-family:ui-monospace,monospace;font-size:10.5px;line-height:1.85;
+  background:rgba(5,8,14,.4);}
+.cs-line{display:flex;gap:7px;padding:2px 0;animation:csIn .3s ease}
+@keyframes csIn{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+.cs-time{color:#46587a;flex-shrink:0;font-size:9.5px;}
+.cs-prefix{flex-shrink:0;font-size:9px;font-weight:700;padding:0 5px;border-radius:3px;
+  display:inline-flex;align-items:center;letter-spacing:.5px;
+  font-family:ui-monospace,monospace;min-width:42px;justify-content:center;}
+.cs-prefix.info{background:rgba(34,211,238,.14);color:#5ee0f5}
+.cs-prefix.ok{background:rgba(16,224,138,.14);color:#4ef0ac}
+.cs-prefix.err{background:rgba(244,63,94,.14);color:#ff8ba0}
+.cs-prefix.warn{background:rgba(251,191,36,.14);color:#fcd34d}
+.cs-prefix.build{background:rgba(139,92,246,.14);color:#b79cff}
+.cs-prefix.test{background:rgba(59,130,246,.14);color:#60a5fa}
+.cs-msg{flex:1;color:var(--txt2);word-break:break-all}
+
+/* 报告 */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.stat-card{padding:13px 15px;border-radius:12px;
+  background:linear-gradient(180deg,rgba(18,26,43,.8),rgba(13,19,32,.9));
+  border:1px solid var(--border);}
+.stat-lbl{font-size:10px;color:var(--txt3);}
+.stat-val{font-size:24px;font-weight:750;margin:6px 0 3px;
+  font-family:ui-monospace,monospace;letter-spacing:-.5px}
+.stat-sub{font-size:9.5px;color:var(--txt3)}
+
+.report-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:12px;}
+.report-live-card{padding:14px;border-radius:12px;
+  background:linear-gradient(180deg,rgba(18,26,43,.85),rgba(13,19,32,.95));
+  border:1px solid var(--border);transition:.3s;cursor:pointer;}
+.report-live-card:hover{border-color:rgba(59,130,246,.5);transform:translateY(-2px);}
+.report-live-card.running{border-color:rgba(251,191,36,.4);}
+.report-live-card.done{border-color:rgba(16,224,138,.3)}
+.rlc-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.rlc-ic{width:32px;height:32px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:14px}
+.rlc-name{font-size:12px;font-weight:700;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rlc-state{font-size:8.5px;padding:2px 8px;border-radius:20px;font-weight:700}
+.rlc-state.running{background:rgba(251,191,36,.14);color:#fcd34d;}
+.rlc-state.done{background:rgba(16,224,138,.14);color:#4ef0ac}
+.rlc-state.paused{background:rgba(251,191,36,.14);color:#fcd34d}
+.rlc-state.inactive{background:rgba(143,163,192,.14);color:#8fa3c0}
+.rlc-bar{height:6px;border-radius:4px;background:rgba(143,163,192,.13);
+  overflow:hidden;margin-bottom:10px;}
+.rlc-bar i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#3b82f6,#60a5fa);transition:width .5s;}
+.rlc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px;}
+.rlc-stat{padding:8px 6px;border-radius:7px;background:rgba(10,15,25,.6);
+  border:1px solid var(--border);text-align:center;}
+.rlc-stat .v{font-size:13px;font-weight:750;font-family:ui-monospace,monospace;margin-bottom:2px}
+.rlc-stat .l{font-size:8px;color:var(--txt3)}
+.rlc-bots{display:flex;gap:5px;flex-wrap:wrap}
+.rlc-bot{display:flex;align-items:center;gap:4px;padding:3px 7px;
+  border-radius:5px;background:rgba(17,26,43,.7);
+  border:1px solid var(--border);font-size:9px;}
+.rlc-bot-av{width:16px;height:16px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7.5px;font-weight:800;color:#06101c}
+
+.report-stream-row{padding:10px 12px;border-radius:9px;
+  background:rgba(17,26,43,.5);border:1px solid var(--border);
+  margin-bottom:6px;transition:.2s;}
+.rsr-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.rsr-ic{width:20px;height:20px;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:9px}
+.rsr-name{font-size:10.5px;font-weight:650;flex:1}
+.rsr-time{font-size:9px;color:var(--txt3);font-family:ui-monospace,monospace}
+.rsr-msg{font-size:10px;color:var(--txt2);padding-left:28px;line-height:1.55;}
+.rsr-msg .ok{color:#4ef0ac}.rsr-msg .warn{color:#fcd34d}.rsr-msg .err{color:#ff8ba0}
+
+.bot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;}
+.bot-card{padding:14px;border-radius:12px;
+  background:linear-gradient(180deg,rgba(20,29,48,.85),rgba(13,19,32,.9));
+  border:1px solid var(--border);transition:.3s;}
+.bot-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);}
+
+/* 模态 */
+.modal-mask{position:fixed;inset:0;z-index:9998;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(2,5,12,.78);backdrop-filter:blur(8px);}
+.modal-mask.show{display:flex;}
+.modal-box{width:780px;max-width:92vw;max-height:85vh;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(8,12,21,1));
+  border:1px solid rgba(59,130,246,.45);border-radius:14px;
+  box-shadow:0 24px 80px rgba(0,0,0,.8),0 0 60px rgba(59,130,246,.2);
+  overflow:hidden;}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;background:rgba(8,12,21,.6);}
+.modal-title{font-size:13px;font-weight:750;flex:1;}
+.modal-close{width:24px;height:24px;border-radius:6px;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--txt3);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font-size:12px;}
+.modal-close:hover{color:var(--txt);border-color:var(--tech);}
+.modal-body{flex:1;overflow-y:auto;padding:16px;min-height:0;}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--border);
+  display:flex;gap:8px;justify-content:flex-end;}
+
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#1f2c44;border-radius:8px;
+  border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#2e4162;background-clip:content-box}
+
+.toast-wrap{position:fixed;top:70px;right:20px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 14px;border-radius:10px;font-size:12px;
+  background:rgba(22,33,58,.98);border:1px solid var(--border2);color:var(--txt);
+  box-shadow:0 12px 40px rgba(0,0,0,.65);
+  display:flex;align-items:center;gap:9px;max-width:380px;}
+.toast .ico{width:18px;height:18px;border-radius:6px;display:flex;
+  align-items:center;justify-content:center;font-size:10px;flex-shrink:0;font-weight:800;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand" onclick="goHome()">
+      <div class="brand-orb"><canvas id="brandBrain"></canvas></div>
+      <div class="brand-texts">
+        <div class="brand-name">NexusMind 智慧大脑</div>
+        <div class="brand-status" id="brainStatus">
+          <span class="dot"></span><span id="brainStatusText">在线待命</span>
+        </div>
+      </div>
+    </div>
+    <nav class="top-menu" id="topMenu"></nav>
+    <div class="top-status">
+      <div class="ts-item"><div class="ts-label">大模型</div><div class="ts-val c" id="topModels">0</div></div>
+      <div class="ts-item"><div class="ts-label">虚拟系统</div><div class="ts-val v" id="topVms">0</div></div>
+      <div class="ts-item"><div class="ts-label">机器人</div><div class="ts-val a" id="topBots">0</div></div>
+      <div class="ts-item"><div class="ts-label">运行中</div><div class="ts-val g" id="topRunning">0</div></div>
+    </div>
+  </header>
+
+  <div class="main-container">
+
+    <div class="home-view" id="homeView">
+      <canvas id="bgScene"></canvas>
+      <div class="brain-canvas-wrap">
+        <canvas id="techFace"></canvas>
+        <div class="center-title">
+          <div class="t1">智慧大脑</div>
+          <div class="t2">WISDOM · BRAIN</div>
+        </div>
+        <div class="ability-ring" id="abilityRing"></div>
+      </div>
+    </div>
+
+    <div class="feature-view" id="featureView">
+      <div class="feature-content">
+
+        <section class="module" id="mod-config">
+          <div class="mod-head">
+            <div class="mod-icon">◈</div>
+            <div><div class="mod-title">智慧配置中心</div>
+              <div class="mod-desc">配置智能体大模型、虚拟系统、机器人角色与工作机器人</div></div>
+          </div>
+          <div class="sub-tabs">
+            <div class="sub-tab active" data-sub="model" onclick="switchSubTab('model')">🧠 智能体大模型</div>
+            <div class="sub-tab" data-sub="vm" onclick="switchSubTab('vm')">🌐 虚拟系统</div>
+            <div class="sub-tab" data-sub="role" onclick="switchSubTab('role')">🎭 机器人角色</div>
+            <div class="sub-tab" data-sub="bot" onclick="switchSubTab('bot')">🤖 工作机器人</div>
+          </div>
+          <div style="flex:1;min-height:0;display:flex;overflow:hidden;">
+            <div class="split" id="sub-model" style="width:100%;">
+              <aside class="side" style="width:300px;">
+                <div class="side-head"><div class="side-title">大模型列表</div></div>
+                <div class="side-body" id="modelList"></div>
+              </aside>
+              <div class="center">
+                <div class="center-head"><span style="font-size:11.5px;color:var(--txt2);" id="modelCenterTitle">大模型配置</span></div>
+                <div class="center-body" id="modelDetail"></div>
+              </div>
+            </div>
+            <div class="split" id="sub-vm" style="width:100%;display:none;">
+              <aside class="side"><div class="side-head"><div class="side-title">虚拟系统列表</div></div>
+                <div class="side-body" id="vmList"></div></aside>
+              <div class="center">
+                <div class="center-head"><span style="font-size:11.5px;color:var(--txt2);" id="vmCenterTitle">虚拟系统配置</span></div>
+                <div class="center-body" id="vmDetail"></div>
+              </div>
+            </div>
+            <div class="split" id="sub-role" style="width:100%;display:none;">
+              <aside class="side"><div class="side-head"><div class="side-title">角色列表</div></div>
+                <div class="side-body" id="roleList"></div></aside>
+              <div class="center">
+                <div class="center-head"><span style="font-size:11.5px;color:var(--txt2);">角色配置</span></div>
+                <div class="center-body" id="roleDetail"></div>
+              </div>
+            </div>
+            <div class="split" id="sub-bot" style="width:100%;display:none;">
+              <div class="center" style="border:none;">
+                <div class="center-head">
+                  <span style="font-size:11.5px;color:var(--txt2);">机器人列表</span>
+                  <div style="margin-left:auto;display:flex;gap:7px;">
+                    <span class="chip green" id="botIdleCount">空闲 0</span>
+                    <span class="chip cyan" id="botBusyCount">忙碌 0</span>
+                  </div>
+                </div>
+                <div class="center-body"><div class="bot-grid" id="botGrid"></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="module" id="mod-task">
+          <div class="mod-head">
+            <div class="mod-icon">📋</div>
+            <div><div class="mod-title">工作任务</div>
+              <div class="mod-desc">创建 Agent 任务，配置 MCP / Skills / 虚拟系统目录，构建并测试通过后可用于工作编排</div></div>
+            <div class="right">
+              <button class="btn btn-sm btn-primary" onclick="createTask()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="13" height="13"><path d="M12 5v14M5 12h14"/></svg>
+                新建任务
+              </button>
+              <button class="btn btn-sm btn-success" id="btnTaskTest" onclick="runTaskTest()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M6 4l14 8-14 8V4z"/>
+                </svg>
+                <span>测试验证</span>
+              </button>
+            </div>
+          </div>
+          <div class="split">
+            <aside class="side">
+              <div class="side-head"><div class="side-title">工作任务列表</div>
+                <div class="side-add" onclick="createTask()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="12" height="12"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
+              </div>
+              <div class="side-body" id="taskList"></div>
+            </aside>
+            <div class="center">
+              <div class="center-head">
+                <span style="font-size:11.5px;color:var(--txt2);">Agent 智能体配置</span>
+                <div style="margin-left:auto;display:flex;gap:7px;">
+                  <button class="btn btn-sm btn-danger" onclick="deleteTask()">删除</button>
+                </div>
+              </div>
+              <div class="center-body" id="taskDetail"></div>
+            </div>
+            <aside style="width:340px;flex-shrink:0;border-left:1px solid var(--border);
+                 background:linear-gradient(180deg,rgba(11,17,29,.75),rgba(8,12,21,.9));
+                 display:flex;flex-direction:column;overflow:hidden;">
+              <div class="drawer-head">
+                <div class="drawer-title">测试控制台</div>
+                <span class="status-pill inactive" id="consoleTag" style="margin-left:auto;">IDLE</span>
+              </div>
+              <div class="console" id="taskConsole">
+                <div class="cs-line">
+                  <span class="cs-time">--:--:--</span>
+                  <span class="cs-msg" style="color:#46587a;">等待构建 / 测试指令… 点击右上「测试验证」开始</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="module" id="mod-work">
+          <div style="height:50px;flex-shrink:0;display:flex;align-items:center;gap:6px;
+               padding:0 16px;border-bottom:1px solid var(--border);
+               background:linear-gradient(180deg,rgba(11,17,29,.7),rgba(8,12,21,.5));">
+            <div style="font-size:12.5px;font-weight:700;margin-right:8px;">工作</div>
+            <div id="workTabs" style="display:flex;gap:6px;align-items:center;overflow-x:auto;flex:1;"></div>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+              <button class="btn btn-sm btn-primary" onclick="createWork()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="13" height="13"><path d="M12 5v14M5 12h14"/></svg>
+                创建工作
+              </button>
+              <div id="testStatusPill" style="font-size:10px;padding:5px 11px;border-radius:20px;font-weight:700;
+                   display:flex;align-items:center;gap:5px;background:rgba(143,163,192,.14);color:#8fa3c0;">
+                <span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>
+                <span id="testStatusText">未测试</span>
+              </div>
+              <button class="btn btn-sm btn-primary" id="btnWorkTest" onclick="runWorkTest()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M6 4l14 8-14 8V4z"/>
+                </svg>
+                测试验证
+              </button>
+              <button class="btn btn-sm btn-warn" onclick="activateWork()">激活工作</button>
+              <button class="btn btn-sm" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="split" style="flex:1;">
+            <aside class="node-toolbar">
+              <div class="nt-head">
+                <div class="nt-title">节点工具栏</div>
+                <div class="nt-sub">点击添加节点到画布，构建工作流程</div>
+              </div>
+              <input class="nt-search" id="taskSearch" placeholder="搜索节点…" oninput="renderNodeToolbar()" />
+              <div class="nt-body" id="nodeToolbarBody"></div>
+              <div class="nt-tip">
+                <b>操作：</b><br>
+                空白处拖动 → 平移画布<br>
+                拖拽节点 → 移动节点<br>
+                单击节点/连线 → 查看属性
+              </div>
+            </aside>
+            <div class="center">
+              <div class="canvas-toolbar">
+                <div class="ct-group">
+                  <button class="ct-btn" onclick="zoomOut()">−</button>
+                  <button class="ct-btn" onclick="zoomReset()" style="min-width:56px;justify-content:center;">
+                    <span class="mono" id="zoomVal" style="font-size:10.5px;">100%</span>
+                  </button>
+                  <button class="ct-btn" onclick="zoomIn()">+</button>
+                  <button class="ct-btn" onclick="fitView()">适应</button>
+                </div>
+                <div class="ct-sep"></div>
+                <div class="ct-group">
+                  <button class="ct-btn on" id="btnGrid" onclick="toggleGrid(this)">网格</button>
+                  <button class="ct-btn on" id="btnSnap" onclick="toggleSnap(this)">吸附</button>
+                </div>
+                <div class="ct-stats">
+                  <div>节点 <b id="statNodes">0</b></div>
+                  <div>依赖 <b id="statEdges">0</b></div>
+                  <div>机器人节点 <b id="statRobotNodes">0</b></div>
+                </div>
+              </div>
+              <div class="canvas-scroll" id="canvasScroll">
+                <div class="canvas" id="workCanvas">
+                  <svg class="edge-svg" id="canvasSvg" width="2000" height="1000" viewBox="0 0 2000 1000" preserveAspectRatio="none"></svg>
+                  <div class="node-layer" id="nodeLayer"></div>
+                  <div class="canvas-empty show" id="canvasEmpty">
+                    <div class="ic">◈</div>
+                    <div class="tt">开始编排工作流程</div>
+                    <div class="dd">从左侧节点工具栏点击节点添加到画布</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <aside class="drawer" id="workDrawer">
+              <div class="drawer-tab" onclick="openDrawer()">
+                <div class="drawer-tab-icon">◈</div>
+                <div class="drawer-tab-text">属 性</div>
+              </div>
+              <div class="drawer-inner">
+                <div class="drawer-head">
+                  <div class="drawer-title" id="inspTitle">节点 / 连线 配置</div>
+                  <button class="drawer-close" onclick="closeDrawer()">✕</button>
+                </div>
+                <div class="drawer-body" id="inspBody">
+                  <div class="empty">
+                    <div class="ic">◈</div>
+                    <div class="tt">未选中任何元素</div>
+                    <div class="dd">单击画布中的节点或连线<br>查看并编辑属性</div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <div class="work-list-bar" id="workListBar">
+            <div class="wlb-label">WORKS</div>
+            <div id="wlbCards" style="display:flex;gap:10px;align-items:center;"></div>
+          </div>
+        </section>
+
+        <!-- ====== 智能分配执行 ====== -->
+        <section class="module" id="mod-alloc">
+          <div class="mod-head">
+            <div class="mod-icon">⚡</div>
+            <div><div class="mod-title">智能分配执行</div>
+              <div class="mod-desc">根据任务角色匹配机器人，流程图展示分配情况，完成后自动启动执行</div></div>
+            <div class="right">
+              <select id="allocWorkSelect" style="padding:7px 11px;background:rgba(5,8,15,.85);
+                border:1px solid var(--border2);color:var(--txt);font-size:11.5px;
+                border-radius:7px;font-family:inherit;outline:none;width:200px;"
+                onchange="onAllocWorkChange()"></select>
+              <button class="btn btn-sm" onclick="fitAllocView()">适应</button>
+              <button class="btn btn-sm" onclick="resetAlloc()">重置</button>
+              <button class="btn btn-sm btn-primary" id="btnAllocAnalyze" onclick="analyzeAndAllocate()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
+                </svg>
+                开始智能分配
+              </button>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;min-height:0;overflow:hidden;">
+            <div class="center" style="background:#050810;position:relative;">
+              <div class="flow-canvas-wrap" id="allocCanvasWrap">
+                <div class="flow-canvas" id="allocFlowCanvas">
+                  <svg class="flow-svg" id="allocFlowSvg" viewBox="0 0 1800 900" preserveAspectRatio="none">
+                    <defs>
+                      <marker id="allocArrow" viewBox="0 0 10 10" refX="8" refY="5"
+                        markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>
+                      </marker>
+                    </defs>
+                  </svg>
+                  <div class="node-layer" id="allocFlowLayer"></div>
+                </div>
+                <div class="canvas-empty show" id="allocEmpty" style="position:absolute;inset:0;">
+                  <div class="ic">⚡</div>
+                  <div class="tt">等待智能分配</div>
+                  <div class="dd">选择工作后点击「开始智能分配」<br>系统将按任务角色自动匹配机器人</div>
+                </div>
+              </div>
+            </div>
+            <aside style="width:320px;flex-shrink:0;border-left:1px solid var(--border);
+                 background:linear-gradient(180deg,rgba(11,17,29,.75),rgba(8,12,21,.9));
+                 display:flex;flex-direction:column;overflow:hidden;">
+              <div class="drawer-head">
+                <div class="drawer-title">分配状态</div>
+                <span style="margin-left:auto;font-size:9.5px;color:var(--txt3);" id="asSubText">选择工作</span>
+              </div>
+              <div class="drawer-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                  <div class="stat-card" style="padding:10px 12px;">
+                    <div class="stat-lbl">总任务</div>
+                    <div class="stat-val" style="color:#8b5cf6;font-size:20px;" id="asTotalTasks">0</div>
+                  </div>
+                  <div class="stat-card" style="padding:10px 12px;">
+                    <div class="stat-lbl">已分配</div>
+                    <div class="stat-val" style="color:#4ef0ac;font-size:20px;" id="asAssignedTasks">0</div>
+                  </div>
+                  <div class="stat-card" style="padding:10px 12px;">
+                    <div class="stat-lbl">自动调度</div>
+                    <div class="stat-val" style="color:#5ee0f5;font-size:20px;" id="asAutoTasks">0</div>
+                  </div>
+                  <div class="stat-card" style="padding:10px 12px;">
+                    <div class="stat-lbl">待分配</div>
+                    <div class="stat-val" style="color:#fcd34d;font-size:20px;" id="asPendingTasks">0</div>
+                  </div>
+                </div>
+                <div style="font-size:10px;color:var(--txt3);letter-spacing:.6px;font-weight:700;
+                  text-transform:uppercase;margin-bottom:8px;">空闲机器人池</div>
+                <div id="idleBotList"></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ====== 监控中心 ====== -->
+        <section class="module" id="mod-monitor">
+          <div class="mod-head">
+            <div class="mod-icon">📡</div>
+            <div><div class="mod-title">监控中心</div>
+              <div class="mod-desc">实时查看工作执行细节和机器人工作轨迹</div></div>
+            <div class="right">
+              <select id="monWorkSelect" style="padding:7px 11px;background:rgba(5,8,15,.85);
+                border:1px solid var(--border2);color:var(--txt);font-size:11.5px;
+                border-radius:7px;font-family:inherit;outline:none;width:200px;"
+                onchange="onMonWorkChange()"></select>
+              <button class="btn btn-sm" onclick="fitMonView()">适应</button>
+              <button class="btn btn-sm btn-primary" id="btnMonStart" onclick="startMonExecution()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M6 4l14 8-14 8V4z"/>
+                </svg>
+                启动执行
+              </button>
+              <button class="btn btn-sm btn-warn" id="btnMonPause" onclick="toggleMonPause()" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M6 4h4v16H6zM14 4h4v16h-4z"/>
+                </svg>
+                暂停
+              </button>
+              <button class="btn btn-sm btn-danger" id="btnMonStop" onclick="stopMonExecution()" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <rect x="6" y="6" width="12" height="12"/>
+                </svg>
+                强制停止
+              </button>
+            </div>
+          </div>
+          <div class="split">
+            <div class="center">
+              <div style="flex:1;min-height:0;position:relative;overflow:hidden;margin:12px;
+                   background:linear-gradient(180deg,rgba(10,15,26,.9),rgba(6,10,18,.95));
+                   border:1px solid var(--border2);border-radius:12px;" id="monWrap">
+                <div style="position:absolute;inset:0;overflow:hidden;cursor:grab;" id="monCanvasWrap">
+                  <div class="mon-canvas" id="monCanvas">
+                    <svg id="monSvg" viewBox="0 0 1400 640" preserveAspectRatio="none"
+                         style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;">
+                      <defs>
+                        <marker id="monArrow" viewBox="0 0 10 10" refX="8" refY="5"
+                          markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>
+                        </marker>
+                      </defs>
+                    </svg>
+                  </div>
+                  <div id="monEmpty" class="empty" style="position:absolute;inset:0;
+                    display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                    <div class="ic">📡</div>
+                    <div class="tt">等待工作启动</div>
+                    <div class="dd">选择工作后点击「启动执行」<br>实时查看机器人工作轨迹</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <aside style="width:340px;flex-shrink:0;border-left:1px solid var(--border);
+                 background:linear-gradient(180deg,rgba(11,17,29,.85),rgba(8,12,21,.95));
+                 display:flex;flex-direction:column;overflow:hidden;">
+              <div style="padding:12px;background:rgba(10,15,25,.4);border-bottom:1px solid var(--border);">
+                <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--txt3);margin-bottom:6px;">
+                  <span>工作进度</span><b style="color:var(--txt2);font-family:ui-monospace,monospace;font-size:13px;" id="monProgressPct">0%</b>
+                </div>
+                <div style="height:6px;border-radius:4px;background:rgba(143,163,192,.13);overflow:hidden;margin-bottom:8px;">
+                  <i id="monProgressBar" style="display:block;height:100%;width:0%;border-radius:4px;
+                     background:linear-gradient(90deg,#3b82f6,#60a5fa);transition:width .5s;
+                     box-shadow:0 0 10px rgba(59,130,246,.5);"></i>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);">
+                  <span>已完成 <b style="color:#4ef0ac;" id="monDoneCount">0</b></span>
+                  <span>总节点 <b style="color:#5ee0f5;" id="monTotalCount">0</b></span>
+                  <span>耗时 <b style="color:#fcd34d;" id="monElapsed">0.0s</b></span>
+                </div>
+              </div>
+              <div style="padding:11px;border-bottom:1px solid var(--border);">
+                <div style="font-size:10px;font-weight:700;color:var(--txt2);letter-spacing:.5px;margin-bottom:8px;">机器人工作轨迹</div>
+                <div id="monBotList" style="max-height:200px;overflow-y:auto;"></div>
+              </div>
+              <div class="drawer-head" style="border-bottom:1px solid var(--border);">
+                <div class="drawer-title">实时日志</div>
+                <span style="margin-left:auto;font-size:9.5px;color:var(--txt3);" id="monLogCount">0</span>
+              </div>
+              <div class="console" id="monConsole" style="flex:1;">
+                <div class="cs-line"><span class="cs-time">--:--:--</span>
+                  <span class="cs-msg" style="color:#46587a;">等待工作启动…</span></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ====== 报告大厅（完整版） ====== -->
+        <section class="module" id="mod-report">
+          <div class="mod-head">
+            <div class="mod-icon">📊</div>
+            <div><div class="mod-title">工作报告大厅</div>
+              <div class="mod-desc">实时展示工作执行进度、机器人工作情况与历史流水</div></div>
+            <div class="right">
+              <select id="rpFilterStatus" onchange="renderReport()"
+                style="padding:6px 10px;background:rgba(5,8,15,.85);border:1px solid var(--border2);
+                color:var(--txt);font-size:11px;border-radius:7px;font-family:inherit;outline:none;">
+                <option value="all">全部状态</option>
+                <option value="running">运行中</option>
+                <option value="done">已完成</option>
+                <option value="inactive">未激活</option>
+              </select>
+              <select id="rpFilterRange" onchange="renderReport()"
+                style="padding:6px 10px;background:rgba(5,8,15,.85);border:1px solid var(--border2);
+                color:var(--txt);font-size:11px;border-radius:7px;font-family:inherit;outline:none;">
+                <option value="all">全部时间</option>
+                <option value="today">今日</option>
+                <option value="week">本周</option>
+              </select>
+              <button class="btn btn-sm" onclick="renderReport();toast('已刷新','ok')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M23 4v6h-6M1 20v-6h6"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                刷新
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="exportReport()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                导出报告
+              </button>
+            </div>
+          </div>
+          <div class="center" style="border:none;">
+            <div class="center-body">
+              <div class="stat-grid">
+                <div class="stat-card"><div class="stat-lbl">运行中工作</div>
+                  <div class="stat-val" style="color:#fcd34d;" id="rpRunning">0</div>
+                  <div class="stat-sub">正在执行</div></div>
+                <div class="stat-card"><div class="stat-lbl">已完成</div>
+                  <div class="stat-val" style="color:#4ef0ac;" id="rpDone">0</div>
+                  <div class="stat-sub">全部完成</div></div>
+                <div class="stat-card"><div class="stat-lbl">活跃机器人</div>
+                  <div class="stat-val" style="color:#5ee0f5;" id="rpActiveBots">0</div>
+                  <div class="stat-sub">正在工作</div></div>
+                <div class="stat-card"><div class="stat-lbl">平均成功率</div>
+                  <div class="stat-val" style="color:#60a5fa;" id="rpAvgRate">—</div>
+                  <div class="stat-sub">任务成功率</div></div>
+              </div>
+              <div class="card">
+                <div class="card-title"><span class="dot"></span>工作实时进度
+                  <span class="right" id="rpLiveCount">0 个</span></div>
+                <div id="rpLiveWorks" class="report-live-grid"></div>
+              </div>
+              <div class="card">
+                <div class="card-title">
+                  <span class="dot" style="background:#10e08a;box-shadow:0 0 8px #10e08a;"></span>
+                  机器人实时工作
+                  <span class="right" id="rpBotCount">0 个</span>
+                </div>
+                <div id="rpBotStatus" style="display:grid;
+                  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;"></div>
+              </div>
+              <div class="card">
+                <div class="card-title">
+                  <span class="dot" style="background:#3b82f6;box-shadow:0 0 8px #3b82f6;"></span>
+                  执行流水
+                  <span class="right" id="rpStreamCount">0 条</span>
+                </div>
+                <div id="rpStream" style="max-height:340px;overflow-y:auto;"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="floating-brain" id="floatingBrain">
+      <button class="fb-toggle" id="fbToggle" onclick="toggleFloatingBrain()">◀</button>
+      <div class="fb-card" id="fbCard">
+        <div class="fb-brain-wrap"><canvas id="miniBrain" width="130" height="130"></canvas></div>
+        <div class="fb-title"><span class="live"></span>智慧大脑</div>
+        <div class="fb-status" id="fbStatus">正在指挥…</div>
+      </div>
+      <div class="fb-hint" id="fbHint">
+        <div class="fb-hint-title">大脑引导</div>
+        <div class="fb-hint-body" id="fbHintBody">选择左侧模块查看详情</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通用模态框 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">标题</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ============ 工具 ============ */
+function toast(msg, type='ok'){
+  const wrap = document.getElementById('toastWrap');
+  const colors = { ok:'#10e08a', warn:'#fbbf24', err:'#f43f5e', info:'#22d3ee' };
+  const icons  = { ok:'✓', warn:'!', err:'✕', info:'i' };
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="ico" style="background:${colors[type]}22;color:${colors[type]}">${icons[type]}</span><span class="msg">${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.transition='.3s'; el.style.opacity='0';
+    el.style.transform='translateX(30px)'; setTimeout(()=>el.remove(),300); }, 2500);
+}
+const $ = id => document.getElementById(id);
+const uid = (p='ID')=>p+'-'+Date.now().toString(36).slice(-4).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase();
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+function nowT(){ const d=new Date(); return [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':'); }
+function nowDate(){ const d=new Date(); return d.toISOString().slice(0,19).replace('T',' '); }
+
+/* 模态 */
+function openModal(title, bodyHTML, footHTML=''){
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = bodyHTML;
+  $('modalFoot').innerHTML = footHTML || `<button class="btn btn-sm" onclick="closeModal()">关闭</button>`;
+  $('modalMask').classList.add('show');
+}
+function closeModal(){ $('modalMask').classList.remove('show'); }
+
+/* ============ 数据 ============ */
+let MODELS = [
+  { id:'MODEL-001', name:'GPT-5.5 Turbo', provider:'OpenAI', model:'gpt-5.5-turbo',
+    apiKey:'sk-proj-••••8f3a', baseUrl:'https://api.openai.com/v1',
+    temperature:0.7, maxTokens:8192, contextLength:128000, enabled:true,
+    color:'#10e08a', icon:'⚡', description:'OpenAI 旗舰模型，复杂推理能力最强' },
+  { id:'MODEL-002', name:'Claude Sonnet 4', provider:'Anthropic', model:'claude-sonnet-4',
+    apiKey:'sk-ant-••••2c1b', baseUrl:'https://api.anthropic.com',
+    temperature:0.5, maxTokens:8192, contextLength:200000, enabled:true,
+    color:'#f97316', icon:'✦', description:'Anthropic 模型，超长上下文能力' },
+  { id:'MODEL-003', name:'DeepSeek V3', provider:'DeepSeek', model:'deepseek-chat',
+    apiKey:'sk-••••e8a9', baseUrl:'https://api.deepseek.com/v1',
+    temperature:0.7, maxTokens:4096, contextLength:64000, enabled:false,
+    color:'#22d3ee', icon:'◆', description:'国产大模型，中文理解优秀' }
+];
+let VMS = [
+  { id:'VM-001', name:'数据分析虚拟系统', status:'ready', host:'nexus-vm-data-01', ip:'10.0.5.11',
+    os:'Ubuntu 22.04', spec:'4 vCPU / 8 GB',
+    networkScope:[{host:'api.nexus.internal',port:443,allow:true},{host:'10.0.3.88',port:5432,allow:true}],
+    fileScope:[{path:'/workspace/data',perm:'rw'},{path:'/workspace/output',perm:'rw'},{path:'/etc',perm:'none'}] },
+  { id:'VM-002', name:'采集虚拟系统', status:'ready', host:'nexus-vm-crawl-01', ip:'10.0.5.12',
+    os:'Ubuntu 22.04', spec:'2 vCPU / 4 GB',
+    networkScope:[{host:'10.0.3.88',port:22,allow:true},{host:'*',port:0,allow:false}],
+    fileScope:[{path:'/workspace/raw',perm:'rw'},{path:'/mnt/share',perm:'ro'}] }
+];
+let ROLES = [
+  { id:'ROLE-001', name:'数据分析师', icon:'✦', color:'#8b5cf6', ability:'分析推理', desc:'业务洞察', vmId:'VM-001' },
+  { id:'ROLE-002', name:'数据采集员', icon:'⚙', color:'#10e08a', ability:'网络访问', desc:'网络数据采集', vmId:'VM-002' },
+  { id:'ROLE-003', name:'文件处理员', icon:'⇄', color:'#14b8a6', ability:'文件操作', desc:'文件读写', vmId:'VM-002' },
+  { id:'ROLE-004', name:'可视化工程师', icon:'◐', color:'#ec4899', ability:'图形渲染', desc:'图表渲染', vmId:'VM-001' },
+  { id:'ROLE-005', name:'报告撰写员', icon:'✎', color:'#8b5cf6', ability:'文本生成', desc:'报告生成', vmId:'VM-001' },
+  { id:'ROLE-006', name:'审核专员', icon:'◉', color:'#3b82f6', ability:'审核校验', desc:'审核校验', vmId:'VM-001' },
+  { id:'ROLE-007', name:'调度角色', icon:'▶', color:'#22d3ee', ability:'触发', desc:'接收分发任务', vmId:'VM-001' }
+];
+let ROBOTS = [
+  { id:'BOT-001', name:'Orion', roleId:'ROLE-001', color:'#8b5cf6', status:'idle', tasks:0, successRate:98.6 },
+  { id:'BOT-002', name:'Vega', roleId:'ROLE-002', color:'#10e08a', status:'idle', tasks:0, successRate:97.2 },
+  { id:'BOT-003', name:'Lyra', roleId:'ROLE-004', color:'#ec4899', status:'idle', tasks:0, successRate:96.4 },
+  { id:'BOT-004', name:'Nova', roleId:'ROLE-006', color:'#3b82f6', status:'idle', tasks:0, successRate:99.1 },
+  { id:'BOT-005', name:'Atlas', roleId:'ROLE-003', color:'#14b8a6', status:'idle', tasks:0, successRate:97.8 },
+  { id:'BOT-006', name:'Pulsar', roleId:'ROLE-001', color:'#8b5cf6', status:'idle', tasks:0, successRate:97.4 },
+  { id:'BOT-007', name:'Quasar', roleId:'ROLE-005', color:'#8b5cf6', status:'idle', tasks:0, successRate:98.2 }
+];
+
+let TASKS = [
+  { id:'T-001', name:'接收工作请求', agentType:'trigger', status:'passed', roleId:'ROLE-007', icon:'▶', color:'#22d3ee',
+    config:{ prompt:'接收触发请求并解析上下文', modelId:'MODEL-001', timeout:30, retries:0, outputFormat:'json' },
+    mcp:[], skills:[],
+    testCases:[
+      {name:'正常触发', desc:'模拟请求进入', expect:'返回上下文 JSON'},
+      {name:'空请求', desc:'空输入容错', expect:'抛出可读错误'}
+    ]
+  },
+  { id:'T-002', name:'需求分析', agentType:'analyze', status:'passed', roleId:'ROLE-001', icon:'✦', color:'#8b5cf6',
+    config:{ prompt:'拆解任务并生成执行计划', modelId:'MODEL-001', timeout:120, retries:2, outputFormat:'json' },
+    mcp:[
+      {id:'mcp-a', name:'filesystem', url:'mcp://nexus-fs', enabled:true},
+      {id:'mcp-b', name:'postgres', url:'mcp://postgres@10.0.3.88:5432', enabled:true}
+    ],
+    skills:[
+      {id:'sk-a', name:'SQL Query', desc:'执行数据库 SQL 查询'},
+      {id:'sk-b', name:'Data Analysis', desc:'数据统计分析'}
+    ],
+    testCases:[
+      {name:'标准分析', desc:'拆解季度分析任务', expect:'返回 ≥3 个子任务'},
+      {name:'模糊需求', desc:'输入模糊需求', expect:'追问澄清'}
+    ]
+  },
+  { id:'T-003', name:'数据采集', agentType:'crawl', status:'passed', roleId:'ROLE-002', icon:'⚙', color:'#10e08a',
+    config:{ prompt:'从数据源采集数据', modelId:'MODEL-002', timeout:300, retries:3, outputFormat:'csv' },
+    mcp:[{id:'mcp-c', name:'http-fetch', url:'mcp://http-fetch', enabled:true}],
+    skills:[{id:'sk-c', name:'Web Scraping', desc:'网页内容抓取'}],
+    testCases:[{name:'数据库采集', desc:'PG 采集 1000 行', expect:'CSV 输出成功'}]
+  },
+  { id:'T-004', name:'数据清洗', agentType:'fileproc', status:'passed', roleId:'ROLE-003', icon:'⇄', color:'#14b8a6',
+    config:{ prompt:'清洗数据', modelId:'MODEL-001', timeout:180, retries:2, outputFormat:'parquet' },
+    mcp:[{id:'mcp-d', name:'filesystem', url:'mcp://nexus-fs', enabled:true}],
+    skills:[{id:'sk-d', name:'Data Cleaning', desc:'数据清洗与转换'}],
+    testCases:[{name:'缺失值填充', desc:'中位数策略', expect:'无缺失值'}]
+  },
+  { id:'T-005', name:'指标计算', agentType:'compute', status:'passed', roleId:'ROLE-001', icon:'∑', color:'#8b5cf6',
+    config:{ prompt:'计算业务指标', modelId:'MODEL-001', timeout:120, retries:2, outputFormat:'json' },
+    mcp:[], skills:[{id:'sk-e', name:'NumPy Compute', desc:'数值计算'}],
+    testCases:[{name:'标准计算', desc:'18 项指标', expect:'返回矩阵'}]
+  },
+  { id:'T-006', name:'可视化生成', agentType:'render', status:'passed', roleId:'ROLE-004', icon:'◐', color:'#ec4899',
+    config:{ prompt:'生成可视化图表', modelId:'MODEL-002', timeout:150, retries:2, outputFormat:'png' },
+    mcp:[], skills:[{id:'sk-f', name:'Chart Render', desc:'图表渲染'}],
+    testCases:[{name:'趋势图', desc:'折线图', expect:'PNG 生成成功'}]
+  },
+  { id:'T-007', name:'报告撰写', agentType:'report', status:'passed', roleId:'ROLE-005', icon:'✎', color:'#8b5cf6',
+    config:{ prompt:'撰写分析报告', modelId:'MODEL-002', timeout:240, retries:2, outputFormat:'md' },
+    mcp:[], skills:[{id:'sk-g', name:'Markdown Writer', desc:'Markdown 文档撰写'}],
+    testCases:[{name:'完整报告', desc:'3000+ 字', expect:'成功返回 MD'}]
+  },
+  { id:'T-008', name:'人工审核', agentType:'human', status:'passed', roleId:'ROLE-006', icon:'◉', color:'#3b82f6',
+    config:{ prompt:'等待人工审核', modelId:'', timeout:3600, retries:0, outputFormat:'approval' },
+    mcp:[], skills:[],
+    testCases:[{name:'通知发送', desc:'向审核人推送', expect:'送达成功'}]
+  },
+  { id:'T-009', name:'完成交付', agentType:'end', status:'passed', roleId:'ROLE-006', icon:'■', color:'#94a3b8',
+    config:{ prompt:'汇总输出并归档', modelId:'MODEL-001', timeout:60, retries:1, outputFormat:'json' },
+    mcp:[], skills:[],
+    testCases:[{name:'结果汇总', desc:'汇总中间产物', expect:'归档完整'}]
+  }
+];
+
+const CORE_NODES = [
+  { id:'CORE-START', name:'开始', icon:'▶', color:'#22d3ee', type:'auto', desc:'工作流起点', config:{timeout:0,retries:0,outputFormat:'-'} },
+  { id:'CORE-END', name:'结束', icon:'■', color:'#94a3b8', type:'auto', desc:'工作流终点', config:{timeout:0,retries:0,outputFormat:'-'} },
+  { id:'CORE-COND', name:'条件分支', icon:'◇', color:'#fbbf24', type:'auto', desc:'条件分流', config:{timeout:0,retries:0,outputFormat:'-'} },
+  { id:'CORE-PARALLEL', name:'并行分支', icon:'⑃', color:'#ec4899', type:'auto', desc:'并行执行', config:{timeout:0,retries:0,outputFormat:'-'} },
+  { id:'CORE-WAIT', name:'等待', icon:'◷', color:'#3b82f6', type:'auto', desc:'等待', config:{timeout:0,retries:0,outputFormat:'-'} },
+  { id:'CORE-NOTIFY', name:'通知', icon:'✉', color:'#14b8a6', type:'auto', desc:'发送通知', config:{timeout:0,retries:0,outputFormat:'-'} },
+  { id:'CORE-MANUAL', name:'人工审批', icon:'◉', color:'#8b5cf6', type:'auto', desc:'人工审批', config:{timeout:0,retries:0,outputFormat:'-'} }
+];
+
+let WORKS = [
+  {
+    id:'W-001', name:'季度数据分析报告', icon:'◈', color:'#3b82f6',
+    status:'inactive', testStatus:'passed',
+    createdAt:'2026-10-14 10:00',
+    nodes:[
+      { id:'n1', taskId:'T-001', type:'auto',  x:40,   y:420 },
+      { id:'n2', taskId:'T-002', type:'auto',  x:300,  y:420 },
+      { id:'n3', taskId:'T-003', type:'robot', x:560,  y:240 },
+      { id:'n4', taskId:'T-004', type:'robot', x:560,  y:600 },
+      { id:'n5', taskId:'T-005', type:'auto',  x:820,  y:240 },
+      { id:'n6', taskId:'T-006', type:'robot', x:820,  y:600 },
+      { id:'n7', taskId:'T-007', type:'robot', x:1080, y:420 },
+      { id:'n8', taskId:'T-008', type:'robot', x:1340, y:420 },
+      { id:'n9', taskId:'T-009', type:'auto',  x:1600, y:420 }
+    ],
+    edges:[['n1','n2'],['n2','n3'],['n2','n4'],['n3','n5'],['n4','n6'],
+           ['n5','n7'],['n6','n7'],['n7','n8'],['n8','n9']],
+    _doneNodes:0
+  }
+];
+
+let WORK_STREAM = [];  // 执行流水
+
+const state = {
+  view:'home', curModule:'config', curSubTab:'model',
+  curModelId:'MODEL-001', curVmId:'VM-001', curRoleId:'ROLE-001',
+  curTaskId:'T-002', curWorkId:'W-001',
+  thinking:false, running:false,
+  workZoom:1, snap:true, showGrid:true,
+  fbCollapsed:false,
+  _selNodeId:null, _selEdgeIdx:null,
+
+  allocZoom:1, allocPanX:0, allocPanY:0,
+  curAllocWorkId:'W-001',
+  allocRunning:false,
+  allocResult:null,
+
+  monZoom:1, monPanX:0, monPanY:0,
+  curMonWorkId:'W-001',
+  monRunning:false,
+  monPaused:false,
+  monAborted:false,
+  monTimers:[],
+  monNodeEls:{},
+  monBotStates:{},
+  monLogCount:0
+};
+
+const NODE_W = 180, NODE_H = 84, GRID = 20;
+
+const MODULES = [
+  { id:'config',  name:'智慧配置中心', icon:'◈', color:'#60a5fa', desc:'大模型 · 虚拟系统 · 角色',
+    detail:'配置智能体大模型、虚拟系统权限、机器人角色与工作机器人' },
+  { id:'task',    name:'工作任务',     icon:'📋', color:'#a78bfa', desc:'Agent · MCP · Skills · 测试',
+    detail:'创建 Agent 任务，配置 MCP 与 Skills，绑定虚拟系统目录，构建并测试验证' },
+  { id:'work',    name:'工作',         icon:'⚙', color:'#34d399', desc:'流程编排 · 测试',
+    detail:'流程化编排任务节点，构建完整工作流' },
+  { id:'alloc',   name:'智能分配执行', icon:'⚡', color:'#fbbf24', desc:'流程图分配 · 自动执行',
+    detail:'根据任务角色匹配机器人，自动启动执行' },
+  { id:'monitor', name:'监控中心',     icon:'📡', color:'#22d3ee', desc:'实时轨迹 · 暂停控制',
+    detail:'实时查看机器人工作轨迹，随时暂停或停止' },
+  { id:'report',  name:'报告大厅',     icon:'📊', color:'#14b8a6', desc:'进度 · 效率分析',
+    detail:'查看工作进度、机器人状态与执行流水' }
+];
+
+/* ============ 顶部 & 主屏 ============ */
+function renderTopMenu(){
+  $('topMenu').innerHTML = MODULES.map(m =>
+    `<div class="menu-item ${state.curModule===m.id?'active':''}" onclick="switchModule('${m.id}')">
+       <span>${m.icon}</span><span>${m.name}</span></div>`).join('');
+}
+function renderAbilityCards(){
+  const ring = $('abilityRing');
+  ring.innerHTML = '';
+  const cx = 590, cy = 370, R = 300, n = MODULES.length;
+  MODULES.forEach((m,i)=>{
+    const ang = -Math.PI/2 + i*(Math.PI*2/n);
+    const x = cx + R*Math.cos(ang);
+    const y = cy + R*Math.sin(ang);
+    const card = document.createElement('div');
+    card.className = 'ability-card';
+    card.style.left = x+'px'; card.style.top = y+'px';
+    card.style.setProperty('--card-color', m.color);
+    card.style.setProperty('--card-glow', m.color+'80');
+    card.onclick = ()=>switchModule(m.id);
+    card.innerHTML = `
+      <div class="ac-idx">0${i+1}</div>
+      <div class="ac-head">
+        <div class="ac-icon">${m.icon}</div>
+        <div><div class="ac-title">${m.name}</div>
+          <div class="ac-sub">${m.desc}</div></div>
+      </div>
+      <div class="ac-desc">${m.detail}</div>`;
+    ring.appendChild(card);
+  });
+}
+function goHome(){
+  state.view = 'home';
+  $('homeView').classList.remove('hidden');
+  $('featureView').classList.remove('active');
+  $('floatingBrain').classList.remove('show');
+  renderTopMenu();
+}
+function switchModule(id){
+  state.curModule = id;
+  state.view = 'feature';
+  $('homeView').classList.add('hidden');
+  $('featureView').classList.add('active');
+  $('floatingBrain').classList.add('show');
+  renderTopMenu();
+  document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+  const el = $('mod-'+id); if(el) el.classList.add('active');
+  if(id==='config') renderConfig();
+  if(id==='task')   renderTaskModule();
+  if(id==='work')   renderWorkModule();
+  if(id==='alloc')  renderAllocModule();
+  if(id==='monitor')renderMonitorModule();
+  if(id==='report') renderReport();
+  updateFloatingHint();
+}
+function switchSubTab(sub){
+  state.curSubTab = sub;
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.toggle('active', t.dataset.sub===sub));
+  document.querySelectorAll('#mod-config .split').forEach(s=>s.style.display='none');
+  $('sub-'+sub).style.display = 'flex';
+  if(sub==='model') renderModelList();
+  if(sub==='vm')    renderVmList();
+  if(sub==='role')  renderRoleList();
+  if(sub==='bot')   renderBotGrid();
+}
+
+/* ============ 配置中心 ============ */
+function renderConfig(){ switchSubTab(state.curSubTab); }
+function renderModelList(){
+  $('modelList').innerHTML = MODELS.map(m=>`
+    <div class="item ${state.curModelId===m.id?'sel':''}" onclick="state.curModelId='${m.id}';renderModelList()">
+      <div class="item-top">
+        <div class="item-ic" style="background:${m.color}22;color:${m.color}">${m.icon}</div>
+        <div class="item-name">${m.name}</div>
+        <span class="status-pill ${m.enabled?'enabled':'disabled'}">${m.enabled?'启用':'禁用'}</span>
+      </div>
+      <div class="item-meta"><span>${m.provider}</span><span>${m.model}</span></div>
+    </div>`).join('');
+  const m = MODELS.find(x=>x.id===state.curModelId);
+  if(!m) return;
+  $('modelCenterTitle').textContent = m.name + ' 配置';
+  $('modelDetail').innerHTML = `
+    <div class="field"><label>模型名称</label><input value="${m.name}"/></div>
+    <div class="field-row">
+      <div class="field"><label>提供商</label><input value="${m.provider}"/></div>
+      <div class="field"><label>模型标识</label><input value="${m.model}"/></div>
+    </div>
+    <div class="field"><label>API Key</label><input value="${m.apiKey}"/></div>
+    <div class="field"><label>Base URL</label><input value="${m.baseUrl}"/></div>
+    <div class="field-row">
+      <div class="field"><label>Temperature</label><input value="${m.temperature}"/></div>
+      <div class="field"><label>Max Tokens</label><input value="${m.maxTokens}"/></div>
+    </div>
+    <div class="field"><label>描述</label><textarea>${m.description}</textarea></div>`;
+}
+function renderVmList(){
+  $('vmList').innerHTML = VMS.map(v=>`
+    <div class="item ${state.curVmId===v.id?'sel':''}" onclick="state.curVmId='${v.id}';renderVmList()">
+      <div class="item-top">
+        <div class="item-ic" style="background:#3b82f622;color:#3b82f6">🌐</div>
+        <div class="item-name">${v.name}</div>
+        <span class="status-pill passed">Ready</span>
+      </div>
+      <div class="item-meta"><span>${v.ip}</span><span>${v.spec}</span></div>
+    </div>`).join('');
+  const v = VMS.find(x=>x.id===state.curVmId);
+  if(!v) return;
+  $('vmCenterTitle').textContent = v.name + ' 配置';
+  $('vmDetail').innerHTML = `
+    <div class="field-row">
+      <div class="field"><label>主机名</label><input value="${v.host}"/></div>
+      <div class="field"><label>IP 地址</label><input value="${v.ip}"/></div>
+    </div>
+    <div class="card"><div class="card-title"><span class="dot"></span>网络访问权限</div>
+      ${v.networkScope.map(n=>`<div class="perm-row"><span class="pi">🌐</span>
+        <input class="pt" value="${n.host}"/>
+        <span class="pv ${n.allow?'allow':'block'}">${n.allow?'允许':'禁止'}</span></div>`).join('')}
+    </div>
+    <div class="card"><div class="card-title"><span class="dot"></span>文件访问权限</div>
+      ${v.fileScope.map(f=>`<div class="perm-row"><span class="pi">📁</span>
+        <input class="pt" value="${f.path}"/>
+        <span class="pv ${f.perm!=='none'?'allow':'block'}">${f.perm}</span></div>`).join('')}
+    </div>`;
+}
+function renderRoleList(){
+  $('roleList').innerHTML = ROLES.map(r=>`
+    <div class="item ${state.curRoleId===r.id?'sel':''}" onclick="state.curRoleId='${r.id}';renderRoleList()">
+      <div class="item-top">
+        <div class="item-ic" style="background:${r.color}22;color:${r.color}">${r.icon}</div>
+        <div class="item-name">${r.name}</div>
+      </div>
+      <div class="item-meta"><span>${r.ability}</span><span>${r.desc}</span></div>
+    </div>`).join('');
+  const r = ROLES.find(x=>x.id===state.curRoleId);
+  if(!r) return;
+  $('roleDetail').innerHTML = `
+    <div class="field"><label>角色名称</label><input value="${r.name}"/></div>
+    <div class="field-row">
+      <div class="field"><label>能力</label><input value="${r.ability}"/></div>
+      <div class="field"><label>绑定虚拟系统</label><input value="${r.vmId}"/></div>
+    </div>
+    <div class="field"><label>描述</label><textarea>${r.desc}</textarea></div>`;
+}
+function renderBotGrid(){
+  const idle = ROBOTS.filter(b=>b.status==='idle').length;
+  $('botIdleCount').textContent = `空闲 ${idle}`;
+  $('botBusyCount').textContent = `忙碌 ${ROBOTS.length-idle}`;
+  $('botGrid').innerHTML = ROBOTS.map(b=>{
+    const r = ROLES.find(x=>x.id===b.roleId);
+    return `<div class="bot-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div class="item-ic" style="width:36px;height:36px;background:${b.color}22;color:${b.color};font-size:15px;">🤖</div>
+        <div><div style="font-size:13px;font-weight:700;">${b.name}</div>
+          <div style="font-size:10px;color:var(--txt3);">${r?r.name:'-'}</div></div>
+        <span class="status-pill ${b.status}" style="margin-left:auto;">${b.status==='idle'?'空闲':'忙碌'}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);">
+        <span>已完成: <b style="color:var(--txt);">${b.tasks}</b></span>
+        <span>成功率: <b style="color:#4ef0ac;">${b.successRate}%</b></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ 任务模块 ============ */
+let taskTestState = { running:false, aborted:false };
+function createTask(){
+  const id = 'T-' + String(TASKS.length+1).padStart(3,'0');
+  TASKS.push({
+    id, name:'新任务 '+id, agentType:'analyze', status:'draft',
+    roleId:'ROLE-001', icon:'✦', color:'#8b5cf6',
+    config:{ prompt:'', modelId:'MODEL-001', timeout:120, retries:1, outputFormat:'json' },
+    mcp:[], skills:[],
+    testCases:[
+      {name:'基础执行', desc:'默认输入', expect:'返回成功'},
+      {name:'异常处理', desc:'异常输入', expect:'捕获异常'}
+    ]
+  });
+  state.curTaskId = id;
+  renderTaskModule(); updateConsoleTag('idle');
+  clearTaskConsole('等待构建 / 测试指令… 点击右上「测试验证」开始');
+  toast('已创建任务 '+id, 'ok');
+}
+function deleteTask(){
+  const idx = TASKS.findIndex(t=>t.id===state.curTaskId);
+  if(idx<0) return;
+  if(!confirm('确定删除任务 ' + TASKS[idx].name + ' ?')) return;
+  TASKS.splice(idx,1);
+  state.curTaskId = TASKS[0]?.id || '';
+  renderTaskModule(); updateConsoleTag('idle');
+  toast('已删除', 'ok');
+}
+function updateConsoleTag(status){
+  const el = $('consoleTag'); if(!el) return;
+  const map = {
+    testing:['testing','TESTING'],
+    passed:['passed','PASSED'],
+    failed:['failed','FAILED'],
+    idle:['inactive','IDLE']
+  };
+  const [cls,label] = map[status] || map.idle;
+  el.className = 'status-pill ' + cls;
+  el.textContent = label;
+}
+function clearTaskConsole(placeholder){
+  const c = $('taskConsole');
+  if(placeholder){
+    c.innerHTML = `<div class="cs-line">
+      <span class="cs-time">--:--:--</span>
+      <span class="cs-msg" style="color:#46587a;">${placeholder}</span></div>`;
+  } else c.innerHTML = '';
+}
+function addTaskLog(type, msg){
+  const c = $('taskConsole');
+  const prefixMap = {info:'INFO', ok:'OK', err:'ERR', warn:'WARN', build:'BUILD', test:'TEST'};
+  const el = document.createElement('div');
+  el.className = 'cs-line';
+  el.innerHTML = `<span class="cs-time">${nowT()}</span>
+    <span class="cs-prefix ${type}">${prefixMap[type]||type.toUpperCase()}</span>
+    <span class="cs-msg">${msg}</span>`;
+  c.appendChild(el); c.scrollTop = c.scrollHeight;
+}
+async function delayRun(ms){
+  let e = 0;
+  while(e < ms){
+    if(taskTestState.aborted) throw new Error('aborted');
+    await sleep(50); e += 50;
+  }
+}
+async function runTaskTest(){
+  const t = TASKS.find(x=>x.id===state.curTaskId);
+  if(!t){ toast('请先选择任务','warn'); return; }
+  if(taskTestState.running){ taskTestState.aborted = true; toast('正在中止…','warn'); return; }
+
+  taskTestState.running = true;
+  taskTestState.aborted = false;
+  state.thinking = true;
+
+  const btn = $('btnTaskTest');
+  const span = btn?.querySelector('span');
+  if(btn){ btn.classList.remove('btn-success'); btn.classList.add('btn-warn'); }
+  if(span) span.textContent = '中止测试';
+
+  t.lastTestReport = { results: [] };
+  clearTaskConsole(); updateConsoleTag('testing');
+  t.status = 'testing';
+  renderTaskListOnly(); renderTaskDetail();
+
+  try {
+    const role = ROLES.find(r=>r.id===t.roleId);
+    const vm = role ? VMS.find(v=>v.id===role.vmId) : null;
+    const model = MODELS.find(m=>m.id===t.config.modelId);
+
+    addTaskLog('info', `▶ 开始测试任务: ${t.name} (${t.id})`);
+    await delayRun(300);
+    addTaskLog('build', '初始化构建环境…');
+    await delayRun(400);
+    addTaskLog('build', `✓ Agent 类型: ${t.agentType}`);
+    await delayRun(200);
+    addTaskLog('build', `✓ 模型加载: ${model?model.name:t.config.modelId || '(未绑定)'}`);
+    await delayRun(300);
+    if(!t.config.prompt || !t.config.prompt.trim()){
+      addTaskLog('err', '× Prompt 为空，无法编译');
+      await delayRun(500);
+      throw new Error('empty prompt');
+    }
+    addTaskLog('build', `✓ Prompt 编译完成 (${t.config.prompt.length} 字符)`);
+    await delayRun(250);
+    if(role){
+      addTaskLog('build', `✓ 绑定角色: ${role.icon} ${role.name}`);
+      await delayRun(220);
+      if(vm){
+        addTaskLog('build', `✓ 挂载虚拟系统: ${vm.host} (${vm.ip})`);
+        await delayRun(220);
+        addTaskLog('info', `  文件目录: ${vm.fileScope.map(f=>`${f.path}[${f.perm}]`).join('  ')}`);
+        await delayRun(320);
+      }
+    } else {
+      addTaskLog('warn', '! 未绑定角色，使用默认沙箱');
+      await delayRun(320);
+    }
+    const mcps = (t.mcp||[]).filter(m=>m.enabled);
+    if(mcps.length){
+      addTaskLog('build', `加载 MCP 工具 (${mcps.length})…`);
+      for(const m of mcps){
+        await delayRun(260);
+        addTaskLog('build', `  ✓ 连接 ${m.name} → ${m.url}`);
+      }
+    } else {
+      await delayRun(200); addTaskLog('warn', '! 未启用 MCP 工具');
+    }
+    if((t.skills||[]).length){
+      addTaskLog('build', `加载 Skills (${t.skills.length})…`);
+      for(const s of t.skills){
+        await delayRun(220);
+        addTaskLog('build', `  ✓ ${s.name} — ${s.desc}`);
+      }
+    } else { await delayRun(200); addTaskLog('warn', '! 未加载技能'); }
+
+    await delayRun(400);
+    addTaskLog('ok', '★ 构建完成，开始执行测试用例');
+    await delayRun(400);
+
+    const cases = (t.testCases && t.testCases.length)
+      ? t.testCases : [{name:'默认用例', desc:'基础执行', expect:'成功'}];
+
+    let passed = 0, failed = 0, totalTime = 0;
+    for(let i=0;i<cases.length;i++){
+      const c = cases[i];
+      const dur = 0.6 + Math.random()*1.6;
+      totalTime += dur;
+      const tcEl = document.getElementById(`tc-${t.id}-${i}`);
+      if(tcEl){ tcEl.className = 'tc-item running'; }
+      addTaskLog('test', `▶ 用例 ${i+1}/${cases.length}: ${c.name}`);
+      await delayRun(400);
+      addTaskLog('info', `  输入: ${c.desc}`);
+      await delayRun(600 + Math.random()*600);
+      const isFail = (i === cases.length - 1) && t._forceFail;
+      if(isFail){
+        addTaskLog('err', `  ✕ 执行失败: 断言不通过（期望 ${c.expect}）`);
+        failed++;
+        t.lastTestReport.results.push({ok:false, dur});
+        if(tcEl){ tcEl.className = 'tc-item fail'; }
+      } else {
+        addTaskLog('ok', `  ✓ 输出符合预期: ${c.expect}`);
+        passed++;
+        t.lastTestReport.results.push({ok:true, dur});
+        if(tcEl){ tcEl.className = 'tc-item pass'; }
+      }
+      const durEl = document.getElementById(`tc-dur-${t.id}-${i}`);
+      if(durEl) durEl.textContent = dur.toFixed(2)+'s';
+      await delayRun(200);
+    }
+    await delayRun(400);
+    addTaskLog('info', '━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    addTaskLog('info', `测试汇总  通过 ${passed} / 失败 ${failed} / 总计 ${cases.length}`);
+    addTaskLog('info', `总耗时 ${totalTime.toFixed(2)}s · 模型 ${model?model.name:'-'}`);
+    await delayRun(350);
+    if(failed === 0){
+      t.status = 'passed'; t.lastTested = nowDate();
+      addTaskLog('ok', '★ 测试通过，任务可用于工作编排');
+      updateConsoleTag('passed'); toast('测试通过 ✓', 'ok');
+    } else {
+      t.status = 'failed'; t.lastTested = nowDate();
+      addTaskLog('err', '× 测试失败，请检查配置后重试');
+      updateConsoleTag('failed'); toast('测试失败', 'err');
+    }
+  } catch(e){
+    if(e && e.message === 'aborted'){
+      addTaskLog('warn', '⚠ 测试已被用户中断');
+      t.status = 'draft'; updateConsoleTag('idle'); toast('已中断', 'warn');
+    } else {
+      addTaskLog('err', '× 测试异常终止: ' + (e.message||e));
+      t.status = 'failed'; updateConsoleTag('failed'); toast('测试异常', 'err');
+    }
+  } finally {
+    taskTestState.running = false;
+    state.thinking = false;
+    if(btn){ btn.disabled = false; btn.classList.remove('btn-warn'); btn.classList.add('btn-success'); }
+    if(span) span.textContent = '测试验证';
+    renderTaskModule();
+  }
+}
+function renderTaskListOnly(){
+  $('taskList').innerHTML = TASKS.map(t=>`
+    <div class="item ${state.curTaskId===t.id?'sel':''}" onclick="state.curTaskId='${t.id}';renderTaskModule();updateConsoleTag('idle')">
+      <div class="item-top">
+        <div class="item-ic" style="background:${t.color}22;color:${t.color}">${t.icon}</div>
+        <div class="item-name">${t.name}</div>
+        <span class="status-pill ${t.status}">${t.status}</span>
+      </div>
+      <div class="item-meta"><span>${t.agentType}</span><span>${t.id}</span></div>
+    </div>`).join('');
+}
+function renderTaskModule(){ renderTaskListOnly(); renderTaskDetail(); }
+function renderTaskDetail(){
+  const t = TASKS.find(x=>x.id===state.curTaskId);
+  if(!t){ $('taskDetail').innerHTML = '<div class="empty"><div class="tt">未选择任务</div></div>'; return; }
+  const role = ROLES.find(r=>r.id===t.roleId);
+  const vm = role ? VMS.find(v=>v.id===role.vmId) : null;
+  const cases = t.testCases || [];
+  const report = t.lastTestReport;
+
+  $('taskDetail').innerHTML = `
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>基础信息
+        <span class="right">${t.id}</span></div>
+      <div class="field"><label>任务名称</label>
+        <input value="${t.name}" onchange="updateTask('name', this.value)"/></div>
+      <div class="field-row">
+        <div class="field"><label>Agent 类型</label>
+          <select onchange="updateTask('agentType', this.value)">
+            ${['trigger','analyze','crawl','fileproc','compute','render','report','human','end']
+              .map(v=>`<option value="${v}" ${t.agentType===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>绑定角色</label>
+          <select onchange="updateTask('roleId', this.value)">
+            ${ROLES.map(r=>`<option value="${r.id}" ${t.roleId===r.id?'selected':''}>${r.icon} ${r.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Prompt</label>
+        <textarea onchange="updateTaskConfig('prompt', this.value)">${t.config.prompt}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>模型</label>
+          <select onchange="updateTaskConfig('modelId', this.value)">
+            ${MODELS.map(m=>`<option value="${m.id}" ${t.config.modelId===m.id?'selected':''}>${m.icon} ${m.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>输出格式</label>
+          <input value="${t.config.outputFormat}" onchange="updateTaskConfig('outputFormat', this.value)"/></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>超时 (秒)</label>
+          <input type="number" value="${t.config.timeout}" onchange="updateTaskConfig('timeout', +this.value)"/></div>
+        <div class="field"><label>重试次数</label>
+          <input type="number" value="${t.config.retries}" onchange="updateTaskConfig('retries', +this.value)"/></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:#22d3ee;box-shadow:0 0 8px #22d3ee;"></span>
+        角色可操作虚拟系统目录
+        <span class="right">${role?role.name:'未绑定'} · ${vm?vm.host:'—'}</span>
+      </div>
+      ${vm ? `
+        <div style="font-size:10.5px;color:var(--txt2);margin-bottom:9px;
+          display:flex;gap:14px;flex-wrap:wrap;">
+          <span>🌐 IP: <b style="color:var(--txt);">${vm.ip}</b></span>
+          <span>💻 ${vm.os}</span>
+          <span>📦 ${vm.spec}</span>
+        </div>
+        <div style="font-size:9.5px;color:var(--txt3);margin-bottom:6px;
+          text-transform:uppercase;letter-spacing:.5px;font-weight:700;">文件系统</div>
+        ${vm.fileScope.map(f=>`
+          <div class="perm-row">
+            <span class="pi">📁</span>
+            <input class="pt" value="${f.path}" readonly/>
+            <span class="pv ${f.perm!=='none'?'allow':'block'}">${f.perm}</span>
+          </div>`).join('')}
+        <div style="font-size:9.5px;color:var(--txt3);margin:12px 0 6px;
+          text-transform:uppercase;letter-spacing:.5px;font-weight:700;">网络访问</div>
+        ${vm.networkScope.map(n=>`
+          <div class="perm-row">
+            <span class="pi">🌐</span>
+            <input class="pt" value="${n.host}${n.port?':'+n.port:''}" readonly/>
+            <span class="pv ${n.allow?'allow':'block'}">${n.allow?'允许':'禁止'}</span>
+          </div>`).join('')}
+      ` : `
+        <div class="empty" style="padding:20px;">
+          <div class="tt">未绑定虚拟系统</div>
+          <div class="dd">请在「智慧配置中心」为该角色绑定虚拟系统</div>
+        </div>`}
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:#fbbf24;box-shadow:0 0 8px #fbbf24;"></span>
+        MCP 工具引入
+        <span class="right">${(t.mcp||[]).filter(x=>x.enabled).length} / ${(t.mcp||[]).length} 启用</span>
+      </div>
+      <div class="tag-list">
+        ${(t.mcp||[]).length ? (t.mcp||[]).map((m,idx)=>`
+          <div class="tag-item">
+            <div class="tag-ic" style="background:#fbbf2422;color:#fbbf24">🔌</div>
+            <div class="tag-info">
+              <div class="tag-name">${m.name}</div>
+              <div class="tag-desc">${m.url}</div>
+            </div>
+            <div class="tag-toggle ${m.enabled?'on':''}" onclick="toggleMcp('${t.id}', ${idx})"></div>
+            <div class="perm-del" onclick="removeMcp('${t.id}', ${idx})">✕</div>
+          </div>`).join('')
+        : '<div style="font-size:10.5px;color:var(--txt3);padding:6px;">暂无 MCP 工具</div>'}
+      </div>
+      <button class="add-tag-btn" onclick="addMcp('${t.id}')">+ 添加 MCP 工具</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:#ec4899;box-shadow:0 0 8px #ec4899;"></span>
+        Skills 技能引入
+        <span class="right">${(t.skills||[]).length} 个技能</span>
+      </div>
+      <div class="tag-list">
+        ${(t.skills||[]).length ? (t.skills||[]).map((s,idx)=>`
+          <div class="tag-item">
+            <div class="tag-ic" style="background:#ec489922;color:#ec4899">✦</div>
+            <div class="tag-info">
+              <div class="tag-name">${s.name}</div>
+              <div class="tag-desc">${s.desc}</div>
+            </div>
+            <div class="perm-del" onclick="removeSkill('${t.id}', ${idx})">✕</div>
+          </div>`).join('')
+        : '<div style="font-size:10.5px;color:var(--txt3);padding:6px;">暂无技能</div>'}
+      </div>
+      <button class="add-tag-btn" onclick="addSkill('${t.id}')">+ 添加技能</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:#3b82f6;box-shadow:0 0 8px #3b82f6;"></span>
+        测试用例
+        <span class="right">${cases.length} 条 · 状态 ${t.status}${t.lastTested?' · '+t.lastTested:''}</span>
+      </div>
+      ${cases.length ? cases.map((c,i)=>{
+        const r = report && report.results[i];
+        const cls = r ? (r.ok?'pass':'fail') : '';
+        const dur = r ? r.dur.toFixed(2)+'s' : '--';
+        return `
+        <div class="tc-item ${cls}" id="tc-${t.id}-${i}">
+          <div class="tc-top">
+            <div class="tc-ic">${i+1}</div>
+            <div class="tc-name">${c.name}</div>
+            <div class="tc-dur" id="tc-dur-${t.id}-${i}">${dur}</div>
+            <div class="perm-del" onclick="removeTestCase('${t.id}', ${i})">✕</div>
+          </div>
+          <div class="tc-desc">${c.desc} · 期望：${c.expect}</div>
+        </div>`;
+      }).join('') : '<div style="font-size:10.5px;color:var(--txt3);padding:6px;">暂无测试用例</div>'}
+      <button class="add-tag-btn" onclick="addTestCase('${t.id}')">+ 添加测试用例</button>
+    </div>
+  `;
+}
+function updateTask(field, value){
+  const t = TASKS.find(x=>x.id===state.curTaskId); if(!t) return;
+  t[field] = value;
+  if(field==='roleId') renderTaskDetail();
+  if(field==='name')   renderTaskListOnly();
+}
+function updateTaskConfig(field, value){
+  const t = TASKS.find(x=>x.id===state.curTaskId); if(!t) return;
+  t.config[field] = value;
+}
+function addMcp(taskId){
+  const t = TASKS.find(x=>x.id===taskId); if(!t) return;
+  const name = prompt('MCP 工具名称：', 'filesystem'); if(!name) return;
+  const url = prompt('MCP 连接地址：', 'mcp://'); if(!url) return;
+  t.mcp = t.mcp || [];
+  t.mcp.push({ id:uid('mcp'), name, url, enabled:true });
+  renderTaskDetail(); toast('已添加 MCP: '+name,'ok');
+}
+function removeMcp(taskId, idx){
+  const t = TASKS.find(x=>x.id===taskId); if(!t||!t.mcp) return;
+  t.mcp.splice(idx,1); renderTaskDetail();
+}
+function toggleMcp(taskId, idx){
+  const t = TASKS.find(x=>x.id===taskId); if(!t||!t.mcp) return;
+  t.mcp[idx].enabled = !t.mcp[idx].enabled; renderTaskDetail();
+}
+function addSkill(taskId){
+  const t = TASKS.find(x=>x.id===taskId); if(!t) return;
+  const name = prompt('技能名称：', 'SQL Query'); if(!name) return;
+  const desc = prompt('技能描述：', '执行数据库查询') || '';
+  t.skills = t.skills || [];
+  t.skills.push({ id:uid('sk'), name, desc });
+  renderTaskDetail(); toast('已添加技能: '+name,'ok');
+}
+function removeSkill(taskId, idx){
+  const t = TASKS.find(x=>x.id===taskId); if(!t||!t.skills) return;
+  t.skills.splice(idx,1); renderTaskDetail();
+}
+function addTestCase(taskId){
+  const t = TASKS.find(x=>x.id===taskId); if(!t) return;
+  const name = prompt('用例名称：', '新用例'); if(!name) return;
+  const desc = prompt('输入描述：', '模拟触发') || '';
+  const expect = prompt('期望输出：', '返回成功') || '';
+  t.testCases = t.testCases || [];
+  t.testCases.push({name, desc, expect});
+  renderTaskDetail();
+}
+function removeTestCase(taskId, idx){
+  const t = TASKS.find(x=>x.id===taskId); if(!t||!t.testCases) return;
+  t.testCases.splice(idx,1);
+  t.lastTestReport = null;
+  renderTaskDetail();
+}
+
+/* ============ 工作流模块 ============ */
+function createWork(){
+  const id = 'W-' + String(WORKS.length+1).padStart(3,'0');
+  const name = prompt('新工作名称：', '新工作 '+id);
+  if(!name) return;
+  WORKS.push({
+    id, name, icon:'◈', color:'#3b82f6',
+    status:'inactive', testStatus:'untested',
+    createdAt: nowDate(),
+    nodes:[], edges:[], _doneNodes:0
+  });
+  state.curWorkId = id;
+  state._selNodeId = null;
+  state._selEdgeIdx = null;
+  renderWorkModule(); closeDrawer(); resetInspector();
+  toast('已创建工作: '+name, 'ok');
+}
+function renderWorkModule(){
+  $('workTabs').innerHTML = WORKS.map(w=>`
+    <div class="sub-tab ${state.curWorkId===w.id?'active':''}"
+      onclick="state.curWorkId='${w.id}';state._selNodeId=null;state._selEdgeIdx=null;renderWorkModule();resetInspector()"
+      style="padding:6px 14px;">
+      ${w.icon} ${w.name}</div>`).join('');
+  renderWorkListBar();
+  renderNodeToolbar();
+  renderWorkCanvas();
+  updateTestStatusPill();
+}
+function updateTestStatusPill(){
+  const w = WORKS.find(x=>x.id===state.curWorkId);
+  if(!w) return;
+  const map = {
+    passed: ['#4ef0ac','测试通过'],
+    failed: ['#ff8ba0','测试失败'],
+    running:['#fcd34d','测试中…'],
+    untested:['#8fa3c0','未测试']
+  };
+  const [c, txt] = map[w.testStatus||'untested'];
+  const pill = $('testStatusPill');
+  if(!pill) return;
+  pill.style.background = c+'22';
+  pill.style.color = c;
+  pill.firstElementChild.style.background = c;
+  $('testStatusText').textContent = txt;
+}
+function renderWorkListBar(){
+  $('wlbCards').innerHTML = WORKS.map(w=>`
+    <div class="wlb-card ${state.curWorkId===w.id?'active':''}"
+      onclick="state.curWorkId='${w.id}';state._selNodeId=null;state._selEdgeIdx=null;renderWorkModule();resetInspector()"
+      style="--w-color:${w.color}">
+      <div class="wlb-top">
+        <div class="wlb-dot" style="color:${w.color}"></div>
+        <div class="wlb-name">${w.name}</div>
+        <div class="wlb-status ${w.status}">${w.status==='inactive'?'未激活':w.status}</div>
+      </div>
+      <div class="wlb-prog">
+        <div class="wlb-bar"><i style="width:${(w._doneNodes/(w.nodes.length||1))*100}%"></i></div>
+        <div class="wlb-meta">${w._doneNodes}/${w.nodes.length}</div>
+      </div>
+    </div>`).join('');
+}
+function renderNodeToolbar(){
+  const search = ($('taskSearch')?.value||'').toLowerCase();
+  const coreList = CORE_NODES.filter(n=>n.name.toLowerCase().includes(search));
+  const taskList = TASKS.filter(n=>n.name.toLowerCase().includes(search));
+  let html = '';
+  if(coreList.length){
+    html += `<div class="nt-section"><div class="nt-section-head">
+      <span class="indicator core"></span>核心节点
+      <span class="count">${coreList.length}</span></div>`;
+    coreList.forEach(n=>{
+      html += `<div class="node-tool-item" style="--item-color:${n.color}" onclick="addNodeToCanvas('${n.id}','auto')">
+        <div class="node-tool-ic" style="background:${n.color}22;color:${n.color}">${n.icon}</div>
+        <div class="node-tool-info"><div class="node-tool-name">${n.name}</div>
+          <div class="node-tool-meta">${n.desc}</div></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  if(taskList.length){
+    html += `<div class="nt-section"><div class="nt-section-head">
+      <span class="indicator task"></span>任务节点
+      <span class="count">${taskList.length}</span></div>`;
+    taskList.forEach(n=>{
+      html += `<div class="node-tool-item" style="--item-color:${n.color}" onclick="addNodeToCanvas('${n.id}','robot')">
+        <div class="node-tool-ic" style="background:${n.color}22;color:${n.color}">${n.icon}</div>
+        <div class="node-tool-info"><div class="node-tool-name">${n.name}</div>
+          <div class="node-tool-meta">${n.agentType}</div></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $('nodeToolbarBody').innerHTML = html || '<div class="empty">没有匹配节点</div>';
+}
+function addNodeToCanvas(taskId, type){
+  const work = WORKS.find(w=>w.id===state.curWorkId); if(!work) return;
+  const scroll = $('canvasScroll');
+  const x = Math.round((scroll.scrollLeft + 200) / state.workZoom / GRID) * GRID;
+  const y = Math.round((scroll.scrollTop + 200) / state.workZoom / GRID) * GRID;
+  const id = 'n' + (Date.now().toString(36).slice(-4));
+  work.nodes.push({ id, taskId, type, x, y });
+  renderWorkCanvas(); selectNode(id);
+}
+function renderWorkCanvas(){
+  const work = WORKS.find(w=>w.id===state.curWorkId); if(!work) return;
+  const nodeLayer = $('nodeLayer');
+  const svg = $('canvasSvg');
+  const empty = $('canvasEmpty');
+  if(!work.nodes.length){
+    nodeLayer.innerHTML = ''; svg.innerHTML = '';
+    empty.classList.add('show');
+    $('statNodes').textContent = 0;
+    $('statEdges').textContent = 0;
+    $('statRobotNodes').textContent = 0;
+    applyZoom(); return;
+  }
+  empty.classList.remove('show');
+  nodeLayer.innerHTML = work.nodes.map(n=>{
+    const t = TASKS.find(x=>x.id===n.taskId) || CORE_NODES.find(x=>x.id===n.taskId);
+    if(!t) return '';
+    const sel = state._selNodeId === n.id;
+    return `<div class="gnode ${n.type} ${sel?'sel':''}" style="left:${n.x}px;top:${n.y}px;" data-id="${n.id}">
+      <div class="gnode-head">
+        <div class="gnode-ic" style="background:${t.color}22;color:${t.color}">${t.icon}</div>
+        <div class="gnode-ttl">
+          <div class="gnode-name">${t.name}</div>
+          <div class="gnode-type">${n.type==='auto'?'自动节点':'机器人节点'}</div>
+        </div>
+      </div>
+      <div class="gnode-info">
+        <span class="gnode-badge ${n.type}">${n.type==='auto'?'⚡ 自动':'🤖 机器人'}</span>
+      </div>
+      <div class="port port-in"></div>
+      <div class="port port-out"></div>
+    </div>`;
+  }).join('');
+  drawEdges();
+  bindNodeInteractions();
+  $('statNodes').textContent = work.nodes.length;
+  $('statEdges').textContent = work.edges.length;
+  $('statRobotNodes').textContent = work.nodes.filter(n=>n.type==='robot').length;
+  applyZoom();
+}
+function drawEdges(){
+  const work = WORKS.find(w=>w.id===state.curWorkId); if(!work) return;
+  const svg = $('canvasSvg');
+  const defs = `<defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
+      markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowSel" viewBox="0 0 10 10" refX="8" refY="5"
+      markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#93c5fd"/>
+    </marker>
+  </defs>`;
+  const paths = work.edges.map(([from,to], idx)=>{
+    const n1 = work.nodes.find(n=>n.id===from);
+    const n2 = work.nodes.find(n=>n.id===to);
+    if(!n1||!n2) return '';
+    const x1 = n1.x + NODE_W, y1 = n1.y + NODE_H/2;
+    const x2 = n2.x, y2 = n2.y + NODE_H/2;
+    const cx = (x1+x2)/2;
+    const d = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+    const sel = state._selEdgeIdx === idx;
+    return `<path class="edge ${sel?'sel':''}" d="${d}" marker-end="url(#${sel?'arrowSel':'arrow'})"/>
+            <path class="edge-hit" data-edge-idx="${idx}" d="${d}"/>`;
+  }).join('');
+  svg.innerHTML = defs + paths;
+  svg.querySelectorAll('.edge-hit').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      selectEdge(parseInt(el.dataset.edgeIdx));
+    });
+  });
+}
+function selectNode(id){
+  state._selNodeId = id; state._selEdgeIdx = null;
+  const work = WORKS.find(w=>w.id===state.curWorkId);
+  const node = work.nodes.find(n=>n.id===id); if(!node) return;
+  const task = TASKS.find(t=>t.id===node.taskId) || CORE_NODES.find(t=>t.id===node.taskId);
+  if(!task) return;
+  const role = task.roleId ? ROLES.find(r=>r.id===task.roleId) : null;
+  const cfg = task.config || {};
+  document.querySelectorAll('.gnode').forEach(el=>el.classList.toggle('sel', el.dataset.id === id));
+  $('inspTitle').textContent = '节点属性 · ' + task.name;
+  $('inspBody').innerHTML = `
+    <div class="field"><label>节点 ID</label><input value="${node.id}" readonly/></div>
+    <div class="field"><label>节点名称</label><input value="${task.name}" readonly/></div>
+    <div class="field-row">
+      <div class="field"><label>节点类型</label>
+        <input value="${node.type==='robot'?'机器人节点':'自动节点'}" readonly/></div>
+      <div class="field"><label>绑定任务</label>
+        <input value="${node.taskId}" readonly/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>X 坐标</label>
+        <input type="number" value="${Math.round(node.x)}" onchange="updateNodePos('${node.id}','x',+this.value)"/></div>
+      <div class="field"><label>Y 坐标</label>
+        <input type="number" value="${Math.round(node.y)}" onchange="updateNodePos('${node.id}','y',+this.value)"/></div>
+    </div>
+    ${role ? `<div class="field"><label>绑定角色</label>
+      <input value="${role.icon} ${role.name}" readonly/></div>` : ''}
+    <div class="field-row">
+      <div class="field"><label>超时(秒)</label><input value="${cfg.timeout ?? '-'}" readonly/></div>
+      <div class="field"><label>重试</label><input value="${cfg.retries ?? '-'}" readonly/></div>
+    </div>
+    <div class="field"><label>输出格式</label><input value="${cfg.outputFormat || '-'}" readonly/></div>
+    <div style="display:flex;gap:7px;margin-top:14px;">
+      <button class="btn btn-sm btn-danger" style="flex:1;justify-content:center;" onclick="deleteNode('${node.id}')">删除节点</button>
+    </div>
+  `;
+  openDrawer(); drawEdges();
+}
+function selectEdge(idx){
+  state._selEdgeIdx = idx; state._selNodeId = null;
+  const work = WORKS.find(w=>w.id===state.curWorkId);
+  if(!work || !work.edges[idx]) return;
+  const [from,to] = work.edges[idx];
+  const n1 = work.nodes.find(n=>n.id===from);
+  const n2 = work.nodes.find(n=>n.id===to);
+  const t1 = n1 ? (TASKS.find(t=>t.id===n1.taskId) || CORE_NODES.find(c=>c.id===n1.taskId)) : null;
+  const t2 = n2 ? (TASKS.find(t=>t.id===n2.taskId) || CORE_NODES.find(c=>c.id===n2.taskId)) : null;
+  document.querySelectorAll('.gnode').forEach(el=>el.classList.remove('sel'));
+  $('inspTitle').textContent = '连线属性';
+  $('inspBody').innerHTML = `
+    <div class="field"><label>起始节点</label>
+      <input value="${t1?.name || from} (${from})" readonly/></div>
+    <div class="field"><label>目标节点</label>
+      <input value="${t2?.name || to} (${to})" readonly/></div>
+    <div class="field"><label>依赖类型</label>
+      <select><option>默认（顺序）</option><option>条件依赖</option><option>并行依赖</option></select></div>
+    <div class="field"><label>条件表达式</label>
+      <input placeholder="如 prev.status === 'success'" /></div>
+    <div style="display:flex;gap:7px;margin-top:14px;">
+      <button class="btn btn-sm btn-danger" style="flex:1;justify-content:center;" onclick="deleteEdge(${idx})">删除连线</button>
+    </div>
+  `;
+  openDrawer(); drawEdges();
+}
+function updateNodePos(id, axis, value){
+  const work = WORKS.find(w=>w.id===state.curWorkId);
+  const node = work?.nodes.find(n=>n.id===id); if(!node) return;
+  node[axis] = Math.max(0, Math.min(axis==='x'?2000-NODE_W:1000-NODE_H, value));
+  const el = document.querySelector(`.gnode[data-id="${id}"]`);
+  if(el){ el.style.left = node.x+'px'; el.style.top = node.y+'px'; }
+  drawEdges();
+}
+function deleteNode(id){
+  const work = WORKS.find(w=>w.id===state.curWorkId); if(!work) return;
+  if(!confirm('确定删除该节点及关联连线？')) return;
+  work.nodes = work.nodes.filter(n=>n.id!==id);
+  work.edges = work.edges.filter(([a,b])=>a!==id && b!==id);
+  state._selNodeId = null;
+  renderWorkCanvas(); resetInspector();
+  toast('已删除节点','ok');
+}
+function deleteEdge(idx){
+  const work = WORKS.find(w=>w.id===state.curWorkId); if(!work) return;
+  work.edges.splice(idx,1);
+  state._selEdgeIdx = null;
+  renderWorkCanvas(); resetInspector();
+  toast('已删除连线','ok');
+}
+function resetInspector(){
+  $('inspTitle').textContent = '节点 / 连线 配置';
+  $('inspBody').innerHTML = `
+    <div class="empty">
+      <div class="ic">◈</div>
+      <div class="tt">未选中任何元素</div>
+      <div class="dd">单击画布中的节点或连线<br>查看并编辑属性</div>
+    </div>`;
+  closeDrawer();
+}
+function applyZoom(){
+  const canvas = $('workCanvas');
+  canvas.style.transform = `scale(${state.workZoom})`;
+  canvas.style.transformOrigin = '0 0';
+  $('zoomVal').textContent = Math.round(state.workZoom*100)+'%';
+}
+function zoomIn(){ state.workZoom = Math.min(2, state.workZoom + 0.1); applyZoom(); }
+function zoomOut(){ state.workZoom = Math.max(0.3, state.workZoom - 0.1); applyZoom(); }
+function zoomReset(){ state.workZoom = 1; applyZoom(); }
+function fitView(){
+  const scroll = $('canvasScroll');
+  const cw = scroll.clientWidth, ch = scroll.clientHeight;
+  const work = WORKS.find(w=>w.id===state.curWorkId);
+  if(!work||!work.nodes.length){ zoomReset(); return; }
+  const maxX = Math.max(...work.nodes.map(n=>n.x)) + NODE_W + 60;
+  const maxY = Math.max(...work.nodes.map(n=>n.y)) + NODE_H + 60;
+  const scale = Math.min(cw/maxX, ch/maxY, 1);
+  state.workZoom = Math.max(0.3, scale);
+  applyZoom();
+}
+function toggleGrid(btn){
+  state.showGrid = !state.showGrid;
+  $('workCanvas').classList.toggle('no-grid', !state.showGrid);
+  btn.classList.toggle('on', state.showGrid);
+}
+function toggleSnap(btn){ state.snap = !state.snap; btn.classList.toggle('on', state.snap); }
+function toggleFullscreen(){
+  const view = $('featureView');
+  if(!document.fullscreenElement){
+    (view.requestFullscreen || view.webkitRequestFullscreen || view.msRequestFullscreen).call(view)
+      .then(()=>toast('已进入全屏','ok'))
+      .catch(err=>toast('全屏失败: '+(err.message||err),'err'));
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document)
+      .then(()=>toast('已退出全屏','ok'));
+  }
+  document.addEventListener('fullscreenchange', ()=>{
+    setTimeout(()=>{ if(state.curModule==='work') fitView(); }, 100);
+  }, { once:true });
+}
+let canvasPan = { active:false, sx:0, sy:0, sl:0, st:0 };
+function initCanvasPan(){
+  const scroll = $('canvasScroll');
+  scroll.addEventListener('mousedown', e=>{
+    if(e.target.closest('.gnode') || e.target.closest('.port')) return;
+    if(e.target.closest('.edge-hit')) return;
+    canvasPan.active = true;
+    canvasPan.sx = e.clientX; canvasPan.sy = e.clientY;
+    canvasPan.sl = scroll.scrollLeft; canvasPan.st = scroll.scrollTop;
+    scroll.classList.add('grabbing');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!canvasPan.active) return;
+    scroll.scrollLeft = canvasPan.sl - (e.clientX - canvasPan.sx);
+    scroll.scrollTop  = canvasPan.st - (e.clientY - canvasPan.sy);
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(canvasPan.active){ canvasPan.active = false; scroll.classList.remove('grabbing'); }
+  });
+  scroll.addEventListener('wheel', e=>{
+    if(e.ctrlKey || e.metaKey){
+      e.preventDefault();
+      if(e.deltaY<0) zoomIn(); else zoomOut();
+    }
+  }, { passive:false });
+}
+let nodeDrag = { active:false, id:null, sx:0, sy:0, nx:0, ny:0, moved:false };
+function bindNodeInteractions(){
+  document.querySelectorAll('.gnode').forEach(el=>{
+    el.addEventListener('mousedown', e=>{
+      if(e.target.closest('.port')) return;
+      const id = el.dataset.id;
+      const work = WORKS.find(w=>w.id===state.curWorkId);
+      const node = work.nodes.find(n=>n.id===id); if(!node) return;
+      nodeDrag.active = true; nodeDrag.id = id;
+      nodeDrag.sx = e.clientX; nodeDrag.sy = e.clientY;
+      nodeDrag.nx = node.x; nodeDrag.ny = node.y;
+      nodeDrag.moved = false;
+      el.classList.add('dragging');
+      e.preventDefault(); e.stopPropagation();
+    });
+  });
+}
+function initNodeDragGlobal(){
+  window.addEventListener('mousemove', e=>{
+    if(!nodeDrag.active) return;
+    const work = WORKS.find(w=>w.id===state.curWorkId);
+    const node = work.nodes.find(n=>n.id===nodeDrag.id); if(!node) return;
+    const dx = (e.clientX - nodeDrag.sx) / state.workZoom;
+    const dy = (e.clientY - nodeDrag.sy) / state.workZoom;
+    if(Math.abs(dx) > 2 || Math.abs(dy) > 2) nodeDrag.moved = true;
+    let nx = nodeDrag.nx + dx;
+    let ny = nodeDrag.ny + dy;
+    if(state.snap){
+      nx = Math.round(nx / GRID) * GRID;
+      ny = Math.round(ny / GRID) * GRID;
+    }
+    nx = Math.max(0, Math.min(2000 - NODE_W, nx));
+    ny = Math.max(0, Math.min(1000 - NODE_H, ny));
+    node.x = nx; node.y = ny;
+    const el = document.querySelector(`.gnode[data-id="${nodeDrag.id}"]`);
+    if(el){ el.style.left = nx+'px'; el.style.top = ny+'px'; }
+    drawEdges();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(nodeDrag.active){
+      const el = document.querySelector(`.gnode[data-id="${nodeDrag.id}"]`);
+      if(el) el.classList.remove('dragging');
+      if(!nodeDrag.moved) selectNode(nodeDrag.id);
+      nodeDrag.active = false;
+    }
+  });
+}
+function openDrawer(){ $('workDrawer').classList.add('open'); }
+function closeDrawer(){ $('workDrawer').classList.remove('open'); }
+
+/* ============ 工作测试验证（新增） ============ */
+let workTestState = { running:false, aborted:false };
+async function runWorkTest(){
+  const work = WORKS.find(w=>w.id===state.curWorkId);
+  if(!work){ toast('请选择工作','warn'); return; }
+  if(!work.nodes.length){ toast('该工作没有节点','warn'); return; }
+  if(workTestState.running){ workTestState.aborted = true; toast('正在中止…','warn'); return; }
+
+  workTestState.running = true;
+  workTestState.aborted = false;
+  state.thinking = true;
+  work.testStatus = 'running';
+  updateTestStatusPill();
+
+  const btn = $('btnWorkTest');
+  const origHTML = btn.innerHTML;
+  btn.classList.remove('btn-primary');
+  btn.classList.add('btn-warn');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <rect x="6" y="6" width="12" height="12"/></svg> 中止测试`;
+
+  // 打开模态测试进度窗口
+  openModal(`测试验证 · ${work.name}`, `
+    <div style="display:flex;gap:14px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;
+          text-transform:uppercase;font-weight:700;letter-spacing:.5px;">测试进度</div>
+        <div id="workTestProgress" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;
+          text-transform:uppercase;font-weight:700;letter-spacing:.5px;">实时日志</div>
+        <div class="console" id="workTestConsole" style="height:340px;border-radius:8px;
+          border:1px solid var(--border);background:rgba(5,8,14,.6);"></div>
+      </div>
+    </div>
+    <div id="workTestSummary" style="margin-top:16px;"></div>
+  `, `<button class="btn btn-sm" onclick="closeModal()">关闭</button>`);
+
+  // 初始化进度列表
+  const progHTML = work.nodes.map(n=>{
+    const t = TASKS.find(x=>x.id===n.taskId) || CORE_NODES.find(x=>x.id===n.taskId);
+    return `<div class="tc-item" id="wt-${n.id}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;">
+      <div class="tc-ic" style="width:18px;height:18px;">◌</div>
+      <div style="font-size:10.5px;font-weight:600;flex:1;">${t?.name || n.id}</div>
+      <div style="font-size:9px;color:var(--txt3);">${n.type==='robot'?'机器人':'自动'}</div>
+    </div>`;
+  }).join('');
+  $('workTestProgress').innerHTML = progHTML;
+
+  const wlog = (type, msg)=>{
+    const c = $('workTestConsole'); if(!c) return;
+    const prefixMap = {info:'INFO', ok:'OK', err:'ERR', warn:'WARN', build:'BUILD', test:'TEST'};
+    const el = document.createElement('div');
+    el.className = 'cs-line';
+    el.innerHTML = `<span class="cs-time">${nowT()}</span>
+      <span class="cs-prefix ${type}">${prefixMap[type]||type.toUpperCase()}</span>
+      <span class="cs-msg">${msg}</span>`;
+    c.appendChild(el); c.scrollTop = c.scrollHeight;
+  };
+  const wdelay = async ms => {
+    let e = 0;
+    while(e < ms){
+      if(workTestState.aborted) throw new Error('aborted');
+      await sleep(50); e += 50;
+    }
+  };
+
+  const t0 = performance.now();
+  let passed = 0, failed = 0;
+
+  try {
+    wlog('info', `▶ 开始测试工作流: ${work.name}`);
+    await wdelay(400);
+    wlog('build', `加载流程: ${work.nodes.length} 节点 / ${work.edges.length} 依赖`);
+    await wdelay(400);
+
+    // 拓扑排序
+    const order = topologicalSort(work);
+    wlog('info', `执行顺序: ${order.map(id=>{
+      const n = work.nodes.find(x=>x.id===id);
+      const t = TASKS.find(t=>t.id===n.taskId) || CORE_NODES.find(t=>t.id===n.taskId);
+      return t?.name || id;
+    }).join(' → ')}`);
+    await wdelay(500);
+
+    for(const nodeId of order){
+      const node = work.nodes.find(n=>n.id===nodeId);
+      const task = TASKS.find(t=>t.id===node.taskId) || CORE_NODES.find(t=>t.id===node.taskId);
+      const role = task.roleId ? ROLES.find(r=>r.id===task.roleId) : null;
+      const el = document.getElementById(`wt-${node.id}`);
+      if(el){ el.className = 'tc-item running'; el.querySelector('.tc-ic').textContent = '▶'; }
+
+      wlog('test', `▶ 执行节点: ${task.name}`);
+      await wdelay(300);
+      if(role) wlog('build', `  绑定角色: ${role.icon} ${role.name}`);
+      await wdelay(500 + Math.random()*700);
+
+      // 简单模拟：任务状态 passed 则通过；如果任务 prompt 为空则失败
+      const ok = task.config && task.config.prompt && task.config.prompt.trim();
+      if(ok){
+        wlog('ok', `  ✓ 节点执行成功`);
+        passed++;
+        if(el){ el.className = 'tc-item pass'; el.querySelector('.tc-ic').textContent = '✓'; }
+      } else {
+        wlog('err', `  ✕ 节点执行失败: 配置不完整`);
+        failed++;
+        if(el){ el.className = 'tc-item fail'; el.querySelector('.tc-ic').textContent = '✕'; }
+      }
+      await wdelay(200);
+    }
+
+    const elapsed = ((performance.now()-t0)/1000).toFixed(1);
+    await wdelay(300);
+    wlog('info', '━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    wlog('info', `测试汇总  通过 ${passed} / 失败 ${failed} / 总计 ${order.length}`);
+    wlog('info', `总耗时 ${elapsed}s`);
+
+    if(failed === 0){
+      work.testStatus = 'passed';
+      work.lastTested = nowDate();
+      work.testReport = { passed:true, duration:+elapsed };
+      wlog('ok', '★ 测试通过，工作可用于分配与执行');
+      $('workTestSummary').innerHTML = `
+        <div class="card" style="border-color:rgba(16,224,138,.4);background:rgba(16,224,138,.06);margin:0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:50%;
+              background:rgba(16,224,138,.2);color:#4ef0ac;display:flex;align-items:center;
+              justify-content:center;font-size:18px;font-weight:700;">✓</div>
+            <div><div style="font-size:13px;font-weight:700;color:#4ef0ac;">测试通过</div>
+              <div style="font-size:10.5px;color:var(--txt3);margin-top:2px;">
+                通过 ${passed} 个节点 · 耗时 ${elapsed}s</div></div>
+          </div>
+        </div>`;
+      toast('工作测试通过 ✓','ok');
+    } else {
+      work.testStatus = 'failed';
+      work.lastTested = nowDate();
+      wlog('err','× 测试失败，请检查节点配置');
+      $('workTestSummary').innerHTML = `
+        <div class="card" style="border-color:rgba(244,63,94,.4);background:rgba(244,63,94,.06);margin:0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:50%;
+              background:rgba(244,63,94,.2);color:#ff8ba0;display:flex;align-items:center;
+              justify-content:center;font-size:18px;font-weight:700;">✕</div>
+            <div><div style="font-size:13px;font-weight:700;color:#ff8ba0;">测试失败</div>
+              <div style="font-size:10.5px;color:var(--txt3);margin-top:2px;">
+                通过 ${passed} · 失败 ${failed} · 耗时 ${elapsed}s</div></div>
+          </div>
+        </div>`;
+      toast('工作测试失败','err');
+    }
+  } catch(e){
+    if(e && e.message === 'aborted'){
+      wlog('warn','⚠ 测试已被中断');
+      work.testStatus = 'untested';
+      toast('已中断','warn');
+    }
+  } finally {
+    workTestState.running = false;
+    state.thinking = false;
+    btn.classList.remove('btn-warn');
+    btn.classList.add('btn-primary');
+    btn.innerHTML = origHTML;
+    updateTestStatusPill();
+  }
+}
+
+function activateWork(){
+  const w = WORKS.find(x=>x.id===state.curWorkId);
+  if(!w) return;
+  if(w.testStatus !== 'passed'){ toast('请先通过测试验证','warn'); return; }
+  if(w.status === 'active'){ toast('该工作已激活','info'); return; }
+  w.status = 'active';
+  renderWorkListBar();
+  toast(`工作「${w.name}」已激活`,'ok');
+}
+
+/* ============ 智能分配执行 ============ */
+function renderAllocModule(){
+  const sel = $('allocWorkSelect');
+  sel.innerHTML = WORKS.map(w=>`<option value="${w.id}" ${state.curAllocWorkId===w.id?'selected':''}>${w.icon} ${w.name}</option>`).join('');
+  if(!state.curAllocWorkId && WORKS[0]) state.curAllocWorkId = WORKS[0].id;
+  renderAllocStats();
+  renderIdleBotList();
+  drawAllocFlow();
+  // 首次进入自动适应
+  setTimeout(fitAllocView, 60);
+}
+function onAllocWorkChange(){
+  state.curAllocWorkId = $('allocWorkSelect').value;
+  state.allocResult = null;
+  renderAllocStats();
+  drawAllocFlow();
+  setTimeout(fitAllocView, 60);
+}
+function resetAlloc(){
+  state.allocResult = null;
+  state.allocRunning = false;
+  ROBOTS.forEach(b=>{ b.status='idle'; });
+  renderAllocStats(); renderIdleBotList(); drawAllocFlow();
+  const btn = $('btnAllocAnalyze');
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
+                </svg> 开始智能分配`;
+  toast('已重置分配状态','ok');
+}
+function renderAllocStats(){
+  const work = WORKS.find(w=>w.id===state.curAllocWorkId);
+  if(!work) return;
+  const total = work.nodes.length;
+  const autoCount = work.nodes.filter(n=>n.type==='auto').length;
+  let assigned = 0, pending = 0;
+  if(state.allocResult){
+    work.nodes.forEach(n=>{
+      if(n.type==='robot'){
+        if(state.allocResult[n.id] && state.allocResult[n.id].botId) assigned++;
+        else pending++;
+      }
+    });
+  }
+  $('asTotalTasks').textContent = total;
+  $('asAssignedTasks').textContent = assigned;
+  $('asAutoTasks').textContent = autoCount;
+  $('asPendingTasks').textContent = pending;
+  $('asSubText').textContent = `${work.icon} ${work.name}`;
+}
+function renderIdleBotList(){
+  const idleBots = ROBOTS.filter(b=>b.status==='idle');
+  if(!idleBots.length){
+    $('idleBotList').innerHTML = '<div class="empty" style="padding:12px;"><div class="dd">没有空闲机器人</div></div>';
+    return;
+  }
+  $('idleBotList').innerHTML = idleBots.map(b=>{
+    const r = ROLES.find(x=>x.id===b.roleId);
+    return `<div class="mon-bot-row">
+      <div class="mbr-av" style="background:${b.color}">${b.name.slice(0,2).toUpperCase()}</div>
+      <div class="mbr-info">
+        <div class="mbr-name">${b.name}</div>
+        <div class="mbr-task">${r?r.icon+' '+r.name:'未绑定'}</div>
+      </div>
+      <span class="mbr-st idle">空闲</span>
+    </div>`;
+  }).join('');
+}
+async function analyzeAndAllocate(){
+  if(state.allocRunning) return;
+  const work = WORKS.find(w=>w.id===state.curAllocWorkId);
+  if(!work){ toast('请选择工作','warn'); return; }
+  if(!work.nodes.length){ toast('该工作没有节点','warn'); return; }
+
+  state.allocRunning = true;
+  state.allocResult = {};
+  ROBOTS.forEach(b=>{ if(b.status!=='busy') b.status='idle'; });
+  renderIdleBotList();
+
+  const btn = $('btnAllocAnalyze');
+  btn.disabled = true;
+  btn.innerHTML = '分配中…';
+  drawAllocFlow();
+
+  const robotNodes = work.nodes.filter(n=>n.type==='robot');
+  if(!robotNodes.length){
+    await sleep(500);
+    toast('该工作全部为自动节点，无需分配','info');
+    state.allocRunning = false;
+    btn.disabled = false;
+    btn.innerHTML = '开始智能分配';
+    renderAllocStats(); drawAllocFlow();
+    return;
+  }
+
+  for(const node of robotNodes){
+    const task = TASKS.find(t=>t.id===node.taskId); if(!task) continue;
+    const role = task.roleId ? ROLES.find(r=>r.id===task.roleId) : null;
+    let matched = role ? ROBOTS.find(b=> b.status==='idle' && b.roleId===role.id) : null;
+    if(!matched) matched = ROBOTS.find(b=> b.status==='idle');
+    if(matched){
+      matched.status = 'busy';
+      matched.tasks = (matched.tasks||0) + 1;
+      state.allocResult[node.id] = {
+        botId: matched.id, botName: matched.name, botColor: matched.color,
+        roleId: role?role.id:null, roleName: role?role.name:null
+      };
+    } else {
+      state.allocResult[node.id] = { pending:true };
+    }
+    renderAllocStats(); renderIdleBotList(); drawAllocFlow();
+    await sleep(450);
+  }
+
+  state.allocRunning = false;
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/>
+                </svg> 重新分配`;
+
+  const assigned = Object.values(state.allocResult).filter(x=>x.botId).length;
+  const pending = Object.values(state.allocResult).filter(x=>x.pending).length;
+  toast(`分配完成：已分配 ${assigned} · 待分配 ${pending}`, 'ok');
+
+  setTimeout(()=>{
+    toast('即将启动工作执行，跳转监控中心…','info');
+    setTimeout(()=>{
+      state.curMonWorkId = work.id;
+      const monSel = $('monWorkSelect');
+      if(monSel) monSel.value = work.id;
+      switchModule('monitor');
+      setTimeout(()=>startMonExecution(), 400);
+    }, 800);
+  }, 800);
+}
+
+/* 智能分配流程图：自适应绘制 */
+function calcLayout(work, W, H, padX, padY){
+  const xs = work.nodes.map(n=>n.x);
+  const ys = work.nodes.map(n=>n.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const spanX = maxX-minX || 1;
+  const spanY = maxY-minY || 1;
+  const usableW = W - padX*2 - 190;
+  const usableH = H - padY*2 - 100;
+  const posMap = {};
+  work.nodes.forEach(n=>{
+    const x = padX + ((n.x - minX) / spanX) * usableW;
+    const y = padY + ((n.y - minY) / spanY) * usableH;
+    posMap[n.id] = { x: Math.round(x), y: Math.round(y) };
+  });
+  return posMap;
+}
+
+function drawAllocFlow(){
+  const work = WORKS.find(w=>w.id===state.curAllocWorkId);
+  const layer = $('allocFlowLayer');
+  const svg = $('allocFlowSvg');
+  const empty = $('allocEmpty');
+  if(!work || !work.nodes.length){
+    layer.innerHTML = '';
+    svg.querySelectorAll('path').forEach(p=>p.remove());
+    empty.classList.add('show');
+    return;
+  }
+  empty.classList.remove('show');
+
+  const W = 1800, H = 900;
+  const posMap = calcLayout(work, W, H, 100, 100);
+
+  // 绘制连线
+  const defs = `<defs>
+    <marker id="allocArrow" viewBox="0 0 10 10" refX="8" refY="5"
+      markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>
+    </marker>
+  </defs>`;
+  const paths = work.edges.map(([from,to])=>{
+    const p1 = posMap[from], p2 = posMap[to];
+    if(!p1 || !p2) return '';
+    const x1 = p1.x + 190, y1 = p1.y + 42;
+    const x2 = p2.x, y2 = p2.y + 42;
+    const cx = (x1+x2)/2;
+    return `<path d="M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}"
+      fill="none" stroke="#3b82f6" stroke-width="2.2"
+      marker-end="url(#allocArrow)"
+      style="filter:drop-shadow(0 0 4px rgba(59,130,246,.7))"/>`;
+  }).join('');
+  svg.innerHTML = defs + paths;
+
+  // 绘制节点
+  layer.innerHTML = work.nodes.map(n=>{
+    const task = TASKS.find(t=>t.id===n.taskId) || CORE_NODES.find(c=>c.id===n.taskId);
+    if(!task) return '';
+    const p = posMap[n.id];
+    const alloc = state.allocResult && state.allocResult[n.id];
+    let cls = n.type==='robot' ? 'robot' : 'auto';
+    let slotHTML = '';
+    if(n.type==='robot'){
+      if(alloc && alloc.botId){
+        cls += ' assigned';
+        slotHTML = `<div class="fn-bot-slot">
+          <div class="fn-bot-assigned">
+            <div class="fn-bot-av" style="background:${alloc.botColor}">${alloc.botName.slice(0,2).toUpperCase()}</div>
+            <div class="fn-bot-name">${alloc.botName}</div>
+          </div>
+        </div>`;
+      } else if(alloc && alloc.pending){
+        cls += ' pending';
+        slotHTML = `<div class="fn-bot-slot"><div class="fn-bot-pending">⏳ 待分配</div></div>`;
+      } else {
+        slotHTML = `<div class="fn-bot-slot"><div class="fn-bot-auto">待分配</div></div>`;
+      }
+    } else {
+      slotHTML = `<div class="fn-bot-slot"><div class="fn-bot-auto">⚡ 自动调度</div></div>`;
+    }
+    const role = task.roleId ? ROLES.find(r=>r.id===task.roleId) : null;
+    return `<div class="flow-node ${cls}" style="left:${p.x}px;top:${p.y}px;">
+      <div class="fn-head">
+        <div class="fn-ic" style="background:${task.color}22;color:${task.color}">${task.icon}</div>
+        <div class="fn-name">${task.name}</div>
+      </div>
+      <div class="fn-type">${n.type==='robot'?'机器人节点':'自动节点'} · ${task.agentType||''}</div>
+      ${role?`<div class="fn-role">${role.icon} ${role.name}</div>`:''}
+      ${slotHTML}
+    </div>`;
+  }).join('');
+}
+
+/* 智能分配：自适应 fitView */
+function applyAllocTransform(){
+  const canvas = $('allocFlowCanvas');
+  canvas.style.transform = `translate(${state.allocPanX}px,${state.allocPanY}px) scale(${state.allocZoom})`;
+}
+function fitAllocView(){
+  const wrap = $('allocCanvasWrap');
+  if(!wrap) return;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  const scale = Math.min(cw/1800, ch/900) * 0.92;
+  state.allocZoom = scale;
+  state.allocPanX = (cw - 1800*scale)/2;
+  state.allocPanY = (ch - 900*scale)/2;
+  applyAllocTransform();
+}
+function initAllocPan(){
+  const wrap = $('allocCanvasWrap');
+  if(!wrap) return;
+  let dragging=false, sx=0, sy=0, px=0, py=0;
+  wrap.addEventListener('mousedown', e=>{
+    if(e.target.closest('.flow-node')) return;
+    dragging = true;
+    sx = e.clientX; sy = e.clientY;
+    px = state.allocPanX; py = state.allocPanY;
+    wrap.classList.add('grabbing');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    state.allocPanX = px + (e.clientX-sx);
+    state.allocPanY = py + (e.clientY-sy);
+    applyAllocTransform();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(dragging){ dragging=false; wrap.classList.remove('grabbing'); }
+  });
+  wrap.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const delta = e.deltaY<0 ? 1.1 : 0.9;
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const oldZ = state.allocZoom;
+    state.allocZoom = Math.max(0.2, Math.min(3, state.allocZoom * delta));
+    const k = state.allocZoom / oldZ;
+    state.allocPanX = mx - (mx - state.allocPanX) * k;
+    state.allocPanY = my - (my - state.allocPanY) * k;
+    applyAllocTransform();
+  }, { passive:false });
+  window.addEventListener('resize', ()=>setTimeout(fitAllocView, 80));
+}
+
+/* ============ 监控中心 ============ */
+function renderMonitorModule(){
+  const sel = $('monWorkSelect');
+  sel.innerHTML = WORKS.map(w=>`<option value="${w.id}" ${state.curMonWorkId===w.id?'selected':''}>${w.icon} ${w.name}</option>`).join('');
+  if(!state.curMonWorkId && WORKS[0]) state.curMonWorkId = WORKS[0].id;
+  drawMonCanvas();
+  updateMonProgress();
+  if(!state.monRunning){
+    $('btnMonPause').disabled = true;
+    $('btnMonStop').disabled = true;
+  }
+  setTimeout(fitMonView, 60);
+}
+function onMonWorkChange(){
+  if(state.monRunning){ toast('正在执行中，请先停止','warn'); return; }
+  state.curMonWorkId = $('monWorkSelect').value;
+  drawMonCanvas();
+  updateMonProgress();
+  setTimeout(fitMonView, 60);
+}
+function drawMonCanvas(){
+  const work = WORKS.find(w=>w.id===state.curMonWorkId);
+  const canvas = $('monCanvas');
+  const empty = $('monEmpty');
+  const svg = $('monSvg');
+  if(!canvas || !svg) return;
+
+  // 清掉旧节点与 token
+  canvas.querySelectorAll('.mon-node,.bot-token').forEach(el=>el.remove());
+
+  if(!work || !work.nodes.length){
+    if(empty) empty.style.display = 'flex';
+    svg.innerHTML = '';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+
+  // 计算布局：把源坐标映射到 1400x640 画布
+  const posMap = calcLayout(work, 1400, 640, 80, 70);
+
+  // 绘制连线：端点使用右边中点 → 左边中点
+  const defs = `<defs>
+    <marker id="monArrow" viewBox="0 0 10 10" refX="8" refY="5"
+      markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6"/>
+    </marker>
+  </defs>`;
+  const paths = work.edges.map(([from,to], i)=>{
+    const p1 = posMap[from], p2 = posMap[to];
+    if(!p1 || !p2) return '';
+    // 节点宽160 高66
+    const x1 = p1.x + 160, y1 = p1.y + 33;
+    const x2 = p2.x, y2 = p2.y + 33;
+    const cx = (x1+x2)/2;
+    const d = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+    return `<path d="${d}" fill="none" stroke="#3b82f6" stroke-width="2"
+      marker-end="url(#monArrow)"
+      style="filter:drop-shadow(0 0 4px rgba(59,130,246,.7))"
+      data-edge-idx="${i}"/>`;
+  }).join('');
+  svg.innerHTML = defs + paths;
+
+  // 绘制节点
+  const nodeHTML = work.nodes.map(n=>{
+    const t = TASKS.find(x=>x.id===n.taskId) || CORE_NODES.find(x=>x.id===n.taskId);
+    if(!t) return '';
+    const p = posMap[n.id];
+    return `<div class="mon-node ${n.type}" id="mon-${n.id}"
+      style="left:${p.x}px;top:${p.y}px;" data-id="${n.id}">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <div style="width:22px;height:22px;border-radius:6px;flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+          background:${t.color}22;color:${t.color}">${t.icon}</div>
+        <div style="font-size:10.5px;font-weight:650;flex:1;overflow:hidden;
+          text-overflow:ellipsis;white-space:nowrap;">${t.name}</div>
+      </div>
+      <div style="font-size:8.5px;color:var(--txt3);display:flex;justify-content:space-between;">
+        <span>${n.type==='robot'?'🤖 机器人':'⚡ 自动'}</span>
+        <span id="mon-status-${n.id}">待执行</span>
+      </div>
+    </div>`;
+  }).join('');
+  canvas.insertAdjacentHTML('beforeend', nodeHTML);
+
+  // 保存位置
+  state.monNodeEls = {};
+  work.nodes.forEach(n=>{ state.monNodeEls[n.id] = { pos: posMap[n.id] }; });
+
+  $('monTotalCount').textContent = work.nodes.length;
+}
+function updateMonProgress(){
+  const work = WORKS.find(w=>w.id===state.curMonWorkId);
+  if(!work){ return; }
+  const total = work.nodes.length;
+  const done = work._doneNodes || 0;
+  const pct = total ? Math.round(done/total*100) : 0;
+  $('monProgressPct').textContent = pct + '%';
+  $('monProgressBar').style.width = pct + '%';
+  $('monDoneCount').textContent = done;
+  $('monTotalCount').textContent = total;
+}
+function applyMonTransform(){
+  const canvas = $('monCanvas');
+  canvas.style.transform = `translate(${state.monPanX}px,${state.monPanY}px) scale(${state.monZoom})`;
+}
+function fitMonView(){
+  const wrap = $('monWrap');
+  if(!wrap) return;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  const scale = Math.min(cw/1400, ch/640) * 0.92;
+  state.monZoom = scale;
+  state.monPanX = (cw - 1400*scale)/2;
+  state.monPanY = (ch - 640*scale)/2;
+  applyMonTransform();
+}
+function initMonPan(){
+  const wrap = $('monCanvasWrap');
+  if(!wrap) return;
+  let dragging=false, sx=0, sy=0, px=0, py=0;
+  wrap.addEventListener('mousedown', e=>{
+    if(e.target.closest('.mon-node')) return;
+    dragging = true;
+    sx = e.clientX; sy = e.clientY;
+    px = state.monPanX; py = state.monPanY;
+    wrap.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    state.monPanX = px + (e.clientX-sx);
+    state.monPanY = py + (e.clientY-sy);
+    applyMonTransform();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(dragging){ dragging=false; wrap.style.cursor = 'grab'; }
+  });
+  wrap.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const delta = e.deltaY<0 ? 1.1 : 0.9;
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const oldZ = state.monZoom;
+    state.monZoom = Math.max(0.2, Math.min(3, state.monZoom * delta));
+    const k = state.monZoom / oldZ;
+    state.monPanX = mx - (mx - state.monPanX) * k;
+    state.monPanY = my - (my - state.monPanY) * k;
+    applyMonTransform();
+  }, { passive:false });
+  window.addEventListener('resize', ()=>setTimeout(fitMonView, 80));
+}
+
+async function startMonExecution(){
+  const work = WORKS.find(w=>w.id===state.curMonWorkId);
+  if(!work || !work.nodes.length){ toast('请选择有效工作','warn'); return; }
+  if(state.monRunning){ toast('已在执行中','warn'); return; }
+
+  // 若无分配结果，自动生成
+  if(!state.allocResult || state.curAllocWorkId !== work.id){
+    state.allocResult = {};
+    ROBOTS.forEach(b=>{ if(b.status!=='busy') b.status='idle'; });
+    const robotNodes = work.nodes.filter(n=>n.type==='robot');
+    for(const node of robotNodes){
+      const task = TASKS.find(t=>t.id===node.taskId); if(!task) continue;
+      const role = task.roleId ? ROLES.find(r=>r.id===task.roleId) : null;
+      let matched = role ? ROBOTS.find(b=> b.status==='idle' && b.roleId===role.id) : null;
+      if(!matched) matched = ROBOTS.find(b=> b.status==='idle');
+      if(matched){
+        matched.status = 'busy';
+        state.allocResult[node.id] = {
+          botId: matched.id, botName: matched.name, botColor: matched.color,
+          roleId: role?role.id:null, roleName: role?role.name:null
+        };
+      } else {
+        state.allocResult[node.id] = { pending:true };
+      }
+    }
+  }
+
+  state.monRunning = true;
+  state.monPaused = false;
+  state.monAborted = false;
+  state.thinking = true;
+  state.running = true;
+  work._doneNodes = 0;
+  work.status = 'running';
+
+  $('btnMonPause').disabled = false;
+  $('btnMonStop').disabled = false;
+  $('btnMonPause').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M6 4h4v16H6zM14 4h4v16h-4z"/>
+                </svg> 暂停`;
+  $('btnMonStart').disabled = true;
+
+  $('monConsole').innerHTML = '';
+  state.monLogCount = 0;
+  $('monLogCount').textContent = 0;
+
+  ROBOTS.forEach(b=>{ if(b.status==='busy') b.status='idle'; });
+
+  // 重绘画布
+  drawMonCanvas();
+
+  const mlog = (type, msg)=>{
+    const c = $('monConsole');
+    const prefixMap = {info:'INFO', ok:'OK', err:'ERR', warn:'WARN', build:'BUILD', test:'TEST'};
+    const el = document.createElement('div');
+    el.className = 'cs-line';
+    el.innerHTML = `<span class="cs-time">${nowT()}</span>
+      <span class="cs-prefix ${type}">${prefixMap[type]||type.toUpperCase()}</span>
+      <span class="cs-msg">${msg}</span>`;
+    c.appendChild(el); c.scrollTop = c.scrollHeight;
+    state.monLogCount++;
+    $('monLogCount').textContent = state.monLogCount;
+  };
+
+  mlog('info', `▶ 启动工作执行: ${work.name}`);
+  await sleep(400);
+  mlog('build', `加载流程: ${work.nodes.length} 节点 / ${work.edges.length} 依赖`);
+  await sleep(400);
+
+  const order = topologicalSort(work);
+  mlog('info', `执行顺序: ${order.map(id=>{
+    const n = work.nodes.find(x=>x.id===id);
+    const t = TASKS.find(t=>t.id===n.taskId) || CORE_NODES.find(t=>t.id===n.taskId);
+    return t?.name || id;
+  }).join(' → ')}`);
+  await sleep(500);
+
+  // 记录开始时间
+  const t0 = Date.now();
+  const timer = setInterval(()=>{
+    if(!state.monPaused && !state.monAborted){
+      $('monElapsed').textContent = ((Date.now()-t0)/1000).toFixed(1)+'s';
+    }
+  }, 100);
+
+  // 生成机器人 token
+  const botTokens = {};
+  work.nodes.forEach(n=>{
+    const alloc = state.allocResult[n.id];
+    if(alloc && alloc.botId){
+      const bot = ROBOTS.find(b=>b.id===alloc.botId);
+      if(bot && !botTokens[bot.id]){
+        const el = document.createElement('div');
+        el.className = 'bot-token';
+        el.style.background = bot.color;
+        el.style.color = bot.color;
+        el.textContent = bot.name.slice(0,2).toUpperCase();
+        $('monCanvas').appendChild(el);
+        botTokens[bot.id] = { el, bot, name: bot.name, color: bot.color };
+      }
+    }
+  });
+  renderMonBotList(botTokens);
+
+  // 依次执行
+  for(const nodeId of order){
+    if(state.monAborted) break;
+    while(state.monPaused && !state.monAborted){ await sleep(200); }
+    if(state.monAborted) break;
+
+    const node = work.nodes.find(n=>n.id===nodeId);
+    const task = TASKS.find(t=>t.id===node.taskId) || CORE_NODES.find(t=>t.id===node.taskId);
+    const alloc = state.allocResult[node.id];
+
+    const nodeEl = document.getElementById(`mon-${node.id}`);
+    const statusEl = document.getElementById(`mon-status-${node.id}`);
+    if(nodeEl){ nodeEl.classList.add('run'); }
+    if(statusEl) statusEl.textContent = '执行中';
+
+    if(alloc && alloc.botId && botTokens[alloc.botId]){
+      const token = botTokens[alloc.botId];
+      const pos = state.monNodeEls[node.id].pos;
+      // token 定位到节点中心偏上
+      token.el.style.left = (pos.x + 160/2 - 18) + 'px';
+      token.el.style.top  = (pos.y - 18) + 'px';
+      token.el.classList.add('visible');
+      mlog('test', `🤖 ${token.name} → ${task.name}`);
+    } else {
+      mlog('test', `⚡ 自动调度 → ${task.name}`);
+    }
+
+    await sleep(800);
+    if(state.monAborted) break;
+
+    if(nodeEl){
+      nodeEl.classList.remove('run');
+      nodeEl.classList.add('ok');
+    }
+    if(statusEl) statusEl.textContent = '✓ 完成';
+    work._doneNodes++;
+    updateMonProgress();
+
+    if(alloc && alloc.botId){
+      const bot = ROBOTS.find(b=>b.id===alloc.botId);
+      if(bot) bot.tasks = (bot.tasks||0) + 1;
+    }
+
+    mlog('ok', `✓ ${task.name} 完成`);
+    renderMonBotList(botTokens);
+    await sleep(200);
+  }
+
+  clearInterval(timer);
+
+  if(state.monAborted){
+    mlog('warn', '⚠ 工作已被强制停止');
+    work.status = 'inactive';
+    toast('工作已停止','warn');
+  } else {
+    mlog('info', '━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    mlog('ok', `★ 工作执行完成 (${work._doneNodes}/${work.nodes.length})`);
+    toast('工作执行完成 ✓','ok');
+    work.status = 'done';
+  }
+
+  // 写入流水
+  WORK_STREAM.unshift({
+    id: uid('S'),
+    workId: work.id,
+    workName: work.name,
+    icon: work.icon,
+    color: work.color,
+    status: state.monAborted ? 'stopped' : 'done',
+    done: work._doneNodes,
+    total: work.nodes.length,
+    time: nowDate(),
+    duration: ((Date.now()-t0)/1000).toFixed(1)
+  });
+  if(WORK_STREAM.length > 50) WORK_STREAM.pop();
+
+  state.monRunning = false;
+  state.thinking = false;
+  state.running = false;
+  $('btnMonPause').disabled = true;
+  $('btnMonStop').disabled = true;
+  $('btnMonStart').disabled = false;
+
+  setTimeout(()=>{ ROBOTS.forEach(b=>{ b.status='idle'; }); renderIdleBotList(); }, 1500);
+  renderWorkListBar();
+}
+
+function topologicalSort(work){
+  const indeg = {};
+  const adj = {};
+  work.nodes.forEach(n=>{ indeg[n.id]=0; adj[n.id]=[]; });
+  work.edges.forEach(([a,b])=>{ adj[a].push(b); indeg[b]++; });
+  const queue = work.nodes.filter(n=>indeg[n.id]===0).map(n=>n.id);
+  const order = [];
+  while(queue.length){
+    const id = queue.shift();
+    order.push(id);
+    adj[id].forEach(next=>{
+      indeg[next]--;
+      if(indeg[next]===0) queue.push(next);
+    });
+  }
+  return order;
+}
+
+function renderMonBotList(botTokens){
+  const list = $('monBotList');
+  const bots = Object.values(botTokens || {});
+  if(!bots.length){
+    list.innerHTML = '<div class="empty" style="padding:10px;"><div class="dd">暂无机器人工作</div></div>';
+    return;
+  }
+  list.innerHTML = bots.map(t=>{
+    const b = t.bot;
+    const role = ROLES.find(r=>r.id===b.roleId);
+    const status = b.status === 'busy' ? 'run' : 'done';
+    const label = b.status === 'busy' ? '工作中' : '已完成';
+    return `<div class="mon-bot-row ${b.status==='busy'?'active':'done'}">
+      <div class="mbr-av" style="background:${b.color}">${b.name.slice(0,2).toUpperCase()}</div>
+      <div class="mbr-info">
+        <div class="mbr-name">${b.name}</div>
+        <div class="mbr-task">${role?role.icon+' '+role.name:'—'}</div>
+      </div>
+      <span class="mbr-st ${status}">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleMonPause(){
+  if(!state.monRunning) return;
+  state.monPaused = !state.monPaused;
+  const btn = $('btnMonPause');
+  if(state.monPaused){
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                       stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                    <path d="M5 3l14 9-14 9V3z"/>
+                  </svg> 继续`;
+    toast('已暂停','warn');
+    document.querySelectorAll('.mon-node.run').forEach(el=>{
+      el.classList.remove('run'); el.classList.add('paused');
+    });
+  } else {
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                       stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                    <path d="M6 4h4v16H6zM14 4h4v16h-4z"/>
+                  </svg> 暂停`;
+    toast('已继续','ok');
+    document.querySelectorAll('.mon-node.paused').forEach(el=>{
+      el.classList.remove('paused'); el.classList.add('run');
+    });
+  }
+}
+function stopMonExecution(){
+  if(!state.monRunning) return;
+  if(!confirm('确定强制停止当前工作执行？')) return;
+  state.monAborted = true;
+  state.monPaused = false;
+  toast('正在停止…','warn');
+}
+
+/* ============ 报告大厅（完整版） ============ */
+function renderReport(){
+  const statusFilter = $('rpFilterStatus')?.value || 'all';
+  const rangeFilter = $('rpFilterRange')?.value || 'all';
+
+  // 统计
+  const running = WORKS.filter(w=>w.status==='running').length;
+  const done = WORKS.filter(w=>w.status==='done').length;
+  const activeBots = ROBOTS.filter(b=>b.status==='busy').length;
+  const avgRate = ROBOTS.length
+    ? (ROBOTS.reduce((s,b)=>s+(b.successRate||0),0)/ROBOTS.length).toFixed(1)+'%'
+    : '—';
+
+  $('rpRunning').textContent = running;
+  $('rpDone').textContent = done;
+  $('rpActiveBots').textContent = activeBots;
+  $('rpAvgRate').textContent = avgRate;
+
+  // 过滤工作
+  let filtered = WORKS.slice();
+  if(statusFilter !== 'all') filtered = filtered.filter(w=>w.status===statusFilter);
+  if(rangeFilter === 'today'){
+    const today = new Date().toISOString().slice(0,10);
+    filtered = filtered.filter(w => (w.createdAt||'').startsWith(today) || w.status!=='inactive');
+  }
+
+  // 工作实时进度卡片
+  $('rpLiveWorks').innerHTML = filtered.length ? filtered.map(w=>`
+    <div class="report-live-card ${w.status}" onclick="showWorkDetail('${w.id}')">
+      <div class="rlc-head">
+        <div class="rlc-ic" style="background:${w.color}22;color:${w.color}">${w.icon}</div>
+        <div class="rlc-name">${w.name}</div>
+        <span class="rlc-state ${w.status}">${
+          w.status==='running'?'运行中':
+          w.status==='done'?'已完成':
+          w.status==='active'?'已激活':'未激活'
+        }</span>
+      </div>
+      <div class="rlc-bar">
+        <i style="width:${(w._doneNodes/(w.nodes.length||1))*100}%"></i>
+      </div>
+      <div class="rlc-stats">
+        <div class="rlc-stat"><div class="v" style="color:#4ef0ac">${w._doneNodes}</div><div class="l">已完成</div></div>
+        <div class="rlc-stat"><div class="v" style="color:#5ee0f5">${w.nodes.length}</div><div class="l">总节点</div></div>
+        <div class="rlc-stat"><div class="v" style="color:#fcd34d">${w.nodes.filter(n=>n.type==='robot').length}</div><div class="l">机器人</div></div>
+        <div class="rlc-stat"><div class="v" style="color:#60a5fa">${w.testStatus==='passed'?'✓':'—'}</div><div class="l">测试</div></div>
+      </div>
+      <div class="rlc-bots">
+        ${ROBOTS.slice(0,4).map(b=>`
+          <div class="rlc-bot">
+            <div class="rlc-bot-av" style="background:${b.color}">${b.name.slice(0,2).toUpperCase()}</div>
+            <span>${b.name}</span>
+          </div>`).join('')}
+        ${ROBOTS.length>4?`<div class="rlc-bot" style="color:var(--txt3);">+${ROBOTS.length-4}</div>`:''}
+      </div>
+    </div>`).join('')
+    : `<div class="empty" style="grid-column:1/-1;padding:30px;">
+        <div class="tt">暂无匹配的工作</div>
+        <div class="dd">调整筛选条件或创建工作后重试</div>
+      </div>`;
+
+  $('rpLiveCount').textContent = filtered.length + ' 个';
+
+  // 机器人实时状态
+  $('rpBotStatus').innerHTML = ROBOTS.map(b=>{
+    const r = ROLES.find(x=>x.id===b.roleId);
+    const isBusy = b.status === 'busy';
+    return `<div class="mon-bot-row ${isBusy?'active':'done'}" style="margin:0;">
+      <div class="mbr-av" style="background:${b.color}">${b.name.slice(0,2).toUpperCase()}</div>
+      <div class="mbr-info">
+        <div class="mbr-name">${b.name}</div>
+        <div class="mbr-task">${r?r.icon+' '+r.name:'—'} · 已完成 ${b.tasks}</div>
+      </div>
+      <span class="mbr-st ${isBusy?'run':'idle'}">${isBusy?'工作中':'空闲'}</span>
+    </div>`;
+  }).join('');
+  $('rpBotCount').textContent = ROBOTS.length + ' 个';
+
+  // 执行流水
+  $('rpStream').innerHTML = WORK_STREAM.length ? WORK_STREAM.map(s=>`
+    <div class="report-stream-row">
+      <div class="rsr-top">
+        <div class="rsr-ic" style="background:${s.color}22;color:${s.color}">${s.icon}</div>
+        <div class="rsr-name">${s.workName}</div>
+        <div class="rsr-time">${s.time}</div>
+      </div>
+      <div class="rsr-msg">
+        ${s.status==='done'?'<span class="ok">✓ 执行完成</span>':'<span class="warn">⚠ 已停止</span>'}
+        · 节点 ${s.done}/${s.total}
+        · 耗时 <b style="color:var(--txt2);">${s.duration}s</b>
+      </div>
+    </div>`).join('')
+    : `<div class="empty" style="padding:30px;">
+        <div class="ic">📊</div>
+        <div class="tt">暂无执行流水</div>
+        <div class="dd">执行一次工作后，这里会显示完整的执行历史</div>
+      </div>`;
+  $('rpStreamCount').textContent = WORK_STREAM.length + ' 条';
+}
+function showWorkDetail(id){
+  const w = WORKS.find(x=>x.id===id); if(!w) return;
+  const nodes = w.nodes.map(n=>{
+    const t = TASKS.find(x=>x.id===n.taskId) || CORE_NODES.find(x=>x.id===n.taskId);
+    return `<div class="tc-item ${n.type==='robot'?'pass':''}" style="padding:8px 10px;">
+      <div class="tc-top">
+        <div class="tc-ic" style="background:${t.color}22;color:${t.color}">${t.icon}</div>
+        <div class="tc-name">${t.name}</div>
+        <span style="font-size:8.5px;color:var(--txt3);">${n.type==='robot'?'机器人':'自动'}</span>
+      </div>
+    </div>`;
+  }).join('');
+  openModal(`工作详情 · ${w.name}`, `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
+      <div class="stat-card" style="padding:10px;">
+        <div class="stat-lbl">节点数</div>
+        <div class="stat-val" style="font-size:18px;color:#60a5fa;">${w.nodes.length}</div>
+      </div>
+      <div class="stat-card" style="padding:10px;">
+        <div class="stat-lbl">依赖数</div>
+        <div class="stat-val" style="font-size:18px;color:#8b5cf6;">${w.edges.length}</div>
+      </div>
+      <div class="stat-card" style="padding:10px;">
+        <div class="stat-lbl">已完成</div>
+        <div class="stat-val" style="font-size:18px;color:#4ef0ac;">${w._doneNodes}</div>
+      </div>
+      <div class="stat-card" style="padding:10px;">
+        <div class="stat-lbl">状态</div>
+        <div class="stat-val" style="font-size:14px;color:#fcd34d;">${w.status}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--txt3);font-weight:700;
+      text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">节点清单</div>
+    ${nodes}
+  `, `<button class="btn btn-sm" onclick="closeModal()">关闭</button>`);
+}
+function exportReport(){
+  const data = {
+    generatedAt: nowDate(),
+    works: WORKS.map(w=>({
+      id:w.id, name:w.name, status:w.status, testStatus:w.testStatus,
+      nodes:w.nodes.length, done:w._doneNodes, createdAt:w.createdAt
+    })),
+    robots: ROBOTS.map(b=>({id:b.id, name:b.name, tasks:b.tasks, rate:b.successRate})),
+    stream: WORK_STREAM
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `nexusmind-report-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('报告已导出','ok');
+}
+
+/* ============ 悬浮大脑 ============ */
+function toggleFloatingBrain(){
+  state.fbCollapsed = !state.fbCollapsed;
+  $('floatingBrain').classList.toggle('collapsed', state.fbCollapsed);
+  $('fbToggle').textContent = state.fbCollapsed ? '🧠' : '◀';
+}
+let fbDrag = { active:false, sx:0, sy:0, fl:0, ft:0 };
+function initFloatingBrainDrag(){
+  const fb = $('floatingBrain');
+  const card = $('fbCard'), hint = $('fbHint'), toggle = $('fbToggle');
+  function startDrag(e){
+    if(e.target === toggle && !state.fbCollapsed) return;
+    fbDrag.active = true;
+    const rect = fb.getBoundingClientRect();
+    fbDrag.sx = e.clientX; fbDrag.sy = e.clientY;
+    fbDrag.fl = rect.left; fbDrag.ft = rect.top;
+    fb.style.transition = 'none';
+    fb.style.right = 'auto';
+    fb.style.left = rect.left + 'px';
+    fb.style.top = rect.top + 'px';
+    fb.style.transform = 'none';
+    e.preventDefault();
+  }
+  card.addEventListener('mousedown', startDrag);
+  hint.addEventListener('mousedown', startDrag);
+  toggle.addEventListener('mousedown', e=>{ if(state.fbCollapsed) startDrag(e); });
+  window.addEventListener('mousemove', e=>{
+    if(!fbDrag.active) return;
+    fb.style.left = (fbDrag.fl + e.clientX - fbDrag.sx) + 'px';
+    fb.style.top  = (fbDrag.ft + e.clientY - fbDrag.sy) + 'px';
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(fbDrag.active){ fbDrag.active = false; fb.style.transition = ''; }
+  });
+}
+function updateFloatingHint(){
+  const m = MODULES.find(x=>x.id===state.curModule);
+  if(m){
+    $('fbHintBody').innerHTML = `<b>${m.name}</b><br>${m.detail}`;
+    $('fbStatus').textContent = `正在指挥 · ${m.name}`;
+  }
+}
+
+/* ============ 动态画布 ============ */
+function drawBgScene(canvas, time){
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width||1600, H = rect.height||900;
+  if(canvas.width !== W*dpr){
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    canvas._cache = null;
+  }
+  ctx.clearRect(0,0,W,H);
+  if(!canvas._cache){
+    const cache = { formulas:[], particles:[] };
+    const syms = ['∑','π','∫','√','∞','Δ','θ','λ','Ω','∂','∇','f(x)','dx','dy','E=mc²','a²+b²=c²'];
+    const texts = ['f(x) = ax² + bx + c','d/dx[sin x] = cos x','∑(i=1..n) xᵢ²',
+      '∫₀^∞ e^(-x²) dx = √π/2','lim(x→0) sin x / x = 1','a² + b² = c²',
+      'E = mc²','∇·E = ρ/ε₀','e^(iπ) + 1 = 0','x̄ = (1/n)∑xᵢ','σ² = ∑(xᵢ-x̄)²/n'];
+    for(let i=0;i<14;i++){
+      cache.formulas.push({
+        x: 50 + Math.random()*(W*0.28), y: 60 + Math.random()*(H-120),
+        text: Math.random()<0.5 ? syms[(Math.random()*syms.length)|0] : texts[(Math.random()*texts.length)|0],
+        size: 11+Math.random()*8, phase: Math.random()*Math.PI*2,
+        speed: 0.0006+Math.random()*0.0008, isBig: Math.random()<0.3
+      });
+    }
+    for(let i=0;i<35;i++){
+      cache.formulas.push({
+        x: W*0.62 + Math.random()*(W*0.35), y: 40 + Math.random()*(H-80),
+        text: Math.random()<0.55 ? syms[(Math.random()*syms.length)|0] : texts[(Math.random()*texts.length)|0],
+        size: 10+Math.random()*12, phase: Math.random()*Math.PI*2,
+        speed: 0.0006+Math.random()*0.0008, isBig: Math.random()<0.25
+      });
+    }
+    for(let i=0;i<80;i++){
+      cache.particles.push({ x:Math.random()*W, y:Math.random()*H,
+        r: Math.random()*1.2+0.3, vx:(Math.random()-0.5)*0.15, vy:(Math.random()-0.5)*0.15,
+        phase: Math.random()*Math.PI*2 });
+    }
+    canvas._cache = cache;
+  }
+  const cache = canvas._cache;
+  const bg = ctx.createRadialGradient(W/2,H/2,100,W/2,H/2,W*0.75);
+  bg.addColorStop(0,'rgba(10,30,65,0.55)');
+  bg.addColorStop(0.5,'rgba(5,18,42,0.7)');
+  bg.addColorStop(1,'rgba(2,8,20,0.95)');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = 'rgba(59,130,246,0.08)'; ctx.lineWidth = 0.5;
+  const gs=60, off = (time*0.008)%gs;
+  for(let x=-off;x<W;x+=gs){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=-off;y<H;y+=gs){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  cache.formulas.forEach(f=>{
+    const pulse = (Math.sin(time*f.speed+f.phase)+1)/2;
+    const a = 0.15 + pulse*0.35;
+    ctx.font = `${f.isBig?'600':'400'} ${f.size}px ui-monospace, monospace`;
+    ctx.fillStyle = `rgba(96,165,250,${a})`;
+    ctx.shadowColor = `rgba(59,130,246,${a*0.8})`;
+    ctx.shadowBlur = f.isBig?10:5;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.shadowBlur = 0;
+  });
+  cache.particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+    if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+    const pulse=(Math.sin(time*0.001+p.phase)+1)/2;
+    const a=0.2+pulse*0.5;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(0.8+pulse*0.6),0,Math.PI*2);
+    ctx.fillStyle = `rgba(147,197,253,${a})`;
+    ctx.shadowColor = 'rgba(96,165,250,0.9)';
+    ctx.shadowBlur = 6; ctx.fill(); ctx.shadowBlur = 0;
+  });
+  const hg = ctx.createLinearGradient(0,H*0.75,0,H);
+  hg.addColorStop(0,'rgba(59,130,246,0)');
+  hg.addColorStop(1,'rgba(59,130,246,0.12)');
+  ctx.fillStyle = hg; ctx.fillRect(0,H*0.75,W,H*0.25);
+}
+function drawMosaicFace(canvas, time){
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio||1;
+  const W = 1180, H = 740;
+  if(canvas.width !== W*dpr){
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  ctx.clearRect(0,0,W,H);
+  const cx = W/2, cy = H/2 - 10;
+  const faceW = 190, faceH = 250;
+  const bs = 9;
+  const thinking = state.thinking || state.running;
+  const t = time * 0.001;
+  const cols = Math.ceil((faceW*2)/bs);
+  const rows = Math.ceil((faceH*2)/bs);
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const bx = cx - faceW + c*bs + bs/2;
+      const by = cy - faceH + r*bs + bs/2;
+      const nx = (bx - cx) / faceW;
+      const ny = (by - cy) / faceH;
+      const d = nx*nx + ny*ny;
+      if(d > 1) continue;
+      const edge = 1 - Math.sqrt(d);
+      const alpha = Math.min(1, edge*4) * 0.85;
+      const w1 = Math.sin(t*3 + c*0.5 + r*0.4) * 0.5 + 0.5;
+      const w2 = Math.sin(t*5 - c*0.3 + r*0.6) * 0.5 + 0.5;
+      const amp = thinking ? 1 : 0.25;
+      const pulse = (w1*0.6 + w2*0.4) * amp;
+      const eyeDist1 = Math.hypot(bx-(cx-55), by-(cy-50));
+      const eyeDist2 = Math.hypot(bx-(cx+55), by-(cy-50));
+      const eyeGlow = Math.max(0, 1 - Math.min(eyeDist1, eyeDist2)/50) * 0.7;
+      const bright = 0.35 + edge*0.35 + pulse*0.35 + eyeGlow;
+      const size = bs * (0.7 + pulse*0.25);
+      const hue = 210 + pulse*20;
+      ctx.fillStyle = `hsla(${hue}, 90%, ${35 + bright*35}%, ${alpha})`;
+      ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.85)`;
+      ctx.shadowBlur = 8 + eyeGlow*10;
+      ctx.fillRect(bx-size/2, by-size/2, size, size);
+      ctx.shadowBlur = 0;
+    }
+  }
+  const eyePulse = thinking ? (Math.sin(t*8)*0.5+0.5) : 0.4;
+  [{x:cx-55,y:cy-50},{x:cx+55,y:cy-50}].forEach(e=>{
+    const g = ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,45);
+    g.addColorStop(0, `rgba(147,197,253,${0.55 + eyePulse*0.45})`);
+    g.addColorStop(0.4, `rgba(59,130,246,${0.25 + eyePulse*0.25})`);
+    g.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(e.x,e.y,45,0,Math.PI*2); ctx.fill();
+  });
+  ctx.beginPath();
+  ctx.strokeStyle = `rgba(59,130,246,${0.15 + Math.sin(t*1.5)*0.08})`;
+  ctx.lineWidth = 1;
+  ctx.arc(cx, cy, 280, 0, Math.PI*2);
+  ctx.stroke();
+}
+function drawMiniBrain(canvas, time){
+  const ctx = canvas.getContext('2d');
+  const W = 130, H = 130;
+  const dpr = window.devicePixelRatio||1;
+  if(canvas.width !== W*dpr){
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  ctx.clearRect(0,0,W,H);
+  const cx = W/2, cy = H/2;
+  const t = time*0.001;
+  const bs = 5;
+  const fw = 42, fh = 54;
+  const cols = Math.ceil(fw*2/bs), rows = Math.ceil(fh*2/bs);
+  const thinking = state.thinking || state.running;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const bx = cx - fw + c*bs + bs/2;
+      const by = cy - fh + r*bs + bs/2;
+      const nx = (bx-cx)/fw, ny = (by-cy)/fh;
+      const d = nx*nx + ny*ny;
+      if(d>1) continue;
+      const edge = 1 - Math.sqrt(d);
+      const alpha = Math.min(1, edge*4)*0.85;
+      const w = Math.sin(t*4 + c*0.7 + r*0.5)*0.5+0.5;
+      const pulse = w * (thinking ? 1 : 0.3);
+      const bright = 0.35 + edge*0.4 + pulse*0.35;
+      const size = bs*(0.75 + pulse*0.25);
+      ctx.fillStyle = `hsla(${210+pulse*20}, 90%, ${35+bright*35}%, ${alpha})`;
+      ctx.shadowColor = `rgba(96,165,250,0.9)`;
+      ctx.shadowBlur = 5;
+      ctx.fillRect(bx-size/2, by-size/2, size, size);
+      ctx.shadowBlur = 0;
+    }
+  }
+}
+function drawBrandBrain(canvas, time){
+  const ctx = canvas.getContext('2d');
+  const W = 38, H = 38;
+  const dpr = window.devicePixelRatio||1;
+  if(canvas.width !== W*dpr){
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  ctx.clearRect(0,0,W,H);
+  const t = time*0.001;
+  const cx = W/2, cy = H/2;
+  const g = ctx.createRadialGradient(cx,cy,0,cx,cy,W/2);
+  g.addColorStop(0, 'rgba(59,130,246,0.55)');
+  g.addColorStop(1, 'rgba(30,64,175,0.2)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx,cy,W/2-1,0,Math.PI*2); ctx.fill();
+  const bs = 3;
+  for(let r=0;r<H/bs;r++){
+    for(let c=0;c<W/bs;c++){
+      const bx = c*bs+bs/2, by = r*bs+bs/2;
+      const d = Math.hypot(bx-cx, by-cy) / (W/2-2);
+      if(d>1) continue;
+      const pulse = (Math.sin(t*3 + c*0.6 + r*0.6)+1)/2;
+      const alpha = (1-d)*0.9 * (0.5 + pulse*0.5);
+      ctx.fillStyle = `rgba(147,197,253,${alpha})`;
+      ctx.fillRect(bx-bs/2, by-bs/2, bs-0.5, bs-0.5);
+    }
+  }
+}
+function startAnimation(){
+  function loop(t){
+    const bg = $('bgScene');    if(bg) drawBgScene(bg, t);
+    const tf = $('techFace');   if(tf) drawMosaicFace(tf, t);
+    const mb = $('miniBrain');  if(mb) drawMiniBrain(mb, t);
+    const bb = $('brandBrain'); if(bb) drawBrandBrain(bb, t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ============ 启动 ============ */
+window.addEventListener('load', ()=>{
+  renderTopMenu();
+  renderAbilityCards();
+  renderConfig();
+  renderReport();
+  startAnimation();
+  initCanvasPan();
+  initNodeDragGlobal();
+  initFloatingBrainDrag();
+  initAllocPan();
+  initMonPan();
+
+  $('canvasScroll').addEventListener('click', e=>{
+    if(e.target.closest('.gnode')) return;
+    if(e.target.closest('.edge-hit')) return;
+    state._selNodeId = null;
+    state._selEdgeIdx = null;
+    document.querySelectorAll('.gnode').forEach(el=>el.classList.remove('sel'));
+    drawEdges();
+    resetInspector();
+  });
+
+  $('homeView').addEventListener('dblclick', e=>{
+    if(!e.target.closest('.ability-card')) goHome();
+  });
+
+  $('topModels').textContent = MODELS.length;
+  $('topVms').textContent = VMS.length;
+  $('topBots').textContent = ROBOTS.length;
+  $('topRunning').textContent = 0;
+
+  updateConsoleTag('idle');
+
+  // 窗口尺寸变化时重新适应
+  window.addEventListener('resize', ()=>{
+    if(state.curModule==='alloc') fitAllocView();
+    if(state.curModule==='monitor') fitMonView();
+  });
+});
+</script>
+</body>
+</html>
