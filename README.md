@@ -300,7 +300,7 @@ v1.0.0（远期）🎯
 
 ## 十、许可证
 
-本项目采用 MIT License 开源。
+本项目采用 Apache2.0 License 开源。
 
 <div align="center">
 NexusMind · 智慧大脑

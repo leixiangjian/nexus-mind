@@ -303,7 +303,7 @@ All forms of contribution are welcome:
 
 ## 10. License
 
-Licensed under the MIT License.
+Licensed under the Apache2.0 License.
 
 <div align="center">
 NexusMind · Wisdom Brain
