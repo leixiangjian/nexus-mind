@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>NexusMind 完整前后端技术架构设计</title>
+<style>
+body{font-family:"Microsoft YaHei","Calibri",sans-serif;font-size:11pt;line-height:1.7;color:#1a1a1a;margin:40px;max-width:900px;}
+h1{font-size:22pt;color:#1e40af;border-bottom:3px solid #3b82f6;padding-bottom:8px;margin-top:40px;}
+h2{font-size:16pt;color:#1e3a8a;border-left:5px solid #3b82f6;padding-left:12px;margin-top:32px;}
+h3{font-size:13pt;color:#1e40af;margin-top:24px;}
+h4{font-size:11.5pt;color:#3730a3;margin-top:18px;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:10pt;}
+th{background:#1e40af;color:#fff;padding:8px 12px;text-align:left;border:1px solid #1e3a8a;}
+td{padding:7px 12px;border:1px solid #cbd5e1;vertical-align:top;}
+tr:nth-child(even) td{background:#f1f5f9;}
+pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:6px;font-family:"Consolas",monospace;font-size:9pt;overflow-x:auto;line-height:1.5;}
+code{font-family:"Consolas",monospace;background:#f1f5f9;padding:2px 6px;border-radius:3px;font-size:9.5pt;color:#be123c;}
+.cover{text-align:center;padding:80px 20px;border-bottom:4px double #3b82f6;margin-bottom:60px;}
+.cover h1{font-size:32pt;border:none;color:#1e3a8a;margin:0;}
+.cover .sub{font-size:14pt;color:#64748b;margin-top:16px;}
+.cover .meta{font-size:11pt;color:#94a3b8;margin-top:40px;line-height:2;}
+.toc{background:#f8fafc;border:1px solid #e2e8f0;padding:20px 30px;border-radius:8px;margin:20px 0;}
+.toc h3{margin-top:0;color:#1e40af;}
+.toc ol{line-height:2;}
+.note{background:#fef3c7;border-left:4px solid #f59e0b;padding:12px 16px;margin:14px 0;font-size:10.5pt;}
+.tip{background:#dbeafe;border-left:4px solid #3b82f6;padding:12px 16px;margin:14px 0;font-size:10.5pt;}
+</style>
+</head>
+<body>
+
+<div class="cover">
+<h1>NexusMind 智慧大脑</h1>
+<div class="sub">完整前后端技术架构设计文档</div>
+<div class="meta">
+版本：v1.0.0<br>
+文档类型：技术架构设计<br>
+技术栈：FastAPI + LangGraph + React + PostgreSQL<br>
+编制日期：2026-10-14
+</div>
+</div>
+
+<div class="toc">
+<h3>目录</h3>
+<ol>
+<li>总体架构设计</li>
+<li>前端架构设计</li>
+<li>后端架构设计</li>
+<li>通信协议设计</li>
+<li>数据流设计</li>
+<li>技术选型对比</li>
+<li>性能与扩展性设计</li>
+<li>安全架构设计</li>
+<li>部署拓扑</li>
+</ol>
+</div>
+
+<h1>1. 总体架构设计</h1>
+
+<h2>1.1 系统全景图</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────────┐
+│                      用户浏览器 / 客户端                          │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ HTTPS
+┌────────────────────────────▼────────────────────────────────────┐
+│                     Nginx / Ingress (反向代理)                    │
+│            TLS 终止 · 负载均衡 · 静态资源 · SSE 长连接             │
+└──────┬──────────────────────┬──────────────────────┬────────────┘
+       │                      │                      │
+       ▼                      ▼                      ▼
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  Frontend   │      │  API Pod 1  │      │  API Pod N  │
+│  (Next.js)  │      │  (FastAPI)  │      │  (FastAPI)  │
+└─────────────┘      └──────┬──────┘      └──────┬──────┘
+                            │                      │
+                     ┌──────┴──────────────────────┘
+                     │
+       ┌─────────────┼─────────────┬─────────────┐
+       ▼             ▼             ▼             ▼
+┌────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ PostgreSQL │ │  Redis   │ │  Celery  │ │ Sandbox  │
+│ + pgvector │ │ 缓存/队列│ │  Worker  │ │ (Docker) │
+└────────────┘ └──────────┘ └──────────┘ └──────────┘
+                                   │
+                     ┌─────────────┴─────────────┐
+                     ▼                           ▼
+              ┌────────────┐             ┌────────────┐
+              │ LangGraph  │             │  MCP 服务器 │
+              │  引擎      │             │  (外部)    │
+              └────────────┘             └────────────┘
+</pre>
+
+<h2>1.2 分层设计</h2>
+<table>
+<tr><th>层级</th><th>组件</th><th>职责</th><th>技术栈</th></tr>
+<tr><td>展示层</td><td>Frontend</td><td>UI 交互、状态管理、SSE 订阅</td><td>Next.js 14 + React 18 + TypeScript + Zustand</td></tr>
+<tr><td>网关层</td><td>Ingress</td><td>路由、TLS、限流、静态资源</td><td>Nginx / Traefik</td></tr>
+<tr><td>接口层</td><td>API Service</td><td>REST 接口、鉴权、参数校验</td><td>FastAPI + Pydantic v2</td></tr>
+<tr><td>业务层</td><td>Service</td><td>业务逻辑编排、事务管理</td><td>Python 3.12 + SQLAlchemy 2.0</td></tr>
+<tr><td>引擎层</td><td>LangGraph</td><td>工作流编排、状态流转、中断恢复</td><td>LangGraph 1.0 + LangChain 0.3</td></tr>
+<tr><td>能力层</td><td>Core</td><td>模型网关、沙箱、MCP、技能运行时</td><td>LiteLLM + Docker SDK + langchain-mcp</td></tr>
+<tr><td>异步层</td><td>Celery</td><td>分布式任务调度</td><td>Celery 5.4 + Redis Broker</td></tr>
+<tr><td>数据层</td><td>Storage</td><td>持久化、缓存、对象存储</td><td>PostgreSQL 16 + Redis 7 + MinIO</td></tr>
+<tr><td>可观测</td><td>OTel</td><td>Trace / Metrics / Logs</td><td>OpenTelemetry + Jaeger + Grafana</td></tr>
+</table>
+
+<h2>1.3 架构核心决策</h2>
+<table>
+<tr><th>编号</th><th>决策</th><th>理由</th></tr>
+<tr><td>AD-01</td><td>LangGraph 作为工作流引擎，Celery 仅作调度</td><td>Celery 无有向图状态管理能力，LangGraph 支持检查点、中断恢复、条件分支</td></tr>
+<tr><td>AD-02</td><td>PostgreSQL 同时承载业务数据 + 检查点 + 向量</td><td>减少组件依赖，事务一致性由单库保证</td></tr>
+<tr><td>AD-03</td><td>SSE 而非 WebSocket 做实时推送</td><td>执行日志是单向广播，SSE 更轻量、易穿透代理</td></tr>
+<tr><td>AD-04</td><td>前端渲染逻辑与后端 API 完全解耦</td><td>高保真原型可复用，前端可独立部署</td></tr>
+<tr><td>AD-05</td><td>沙箱使用 Docker + gVisor 而非进程隔离</td><td>LLM 生成的代码不可信，需要内核级隔离</td></tr>
+<tr><td>AD-06</td><td>MCP 工具通过 langchain-mcp-adapters 接入</td><td>标准化协议，一次接入多处复用</td></tr>
+</table>
+
+<h1>2. 前端架构设计</h1>
+
+<h2>2.1 技术栈</h2>
+<table>
+<tr><th>类别</th><th>技术</th><th>版本</th><th>用途</th></tr>
+<tr><td>框架</td><td>Next.js</td><td>14.x (App Router)</td><td>SSR / CSR 混合渲染</td></tr>
+<tr><td>UI 库</td><td>React</td><td>18.x</td><td>组件化视图</td></tr>
+<tr><td>语言</td><td>TypeScript</td><td>5.x</td><td>类型安全</td></tr>
+<tr><td>状态</td><td>Zustand</td><td>4.x</td><td>轻量全局状态</td></tr>
+<tr><td>请求</td><td>TanStack Query</td><td>5.x</td><td>服务端状态缓存</td></tr>
+<tr><td>样式</td><td>Tailwind CSS</td><td>3.x</td><td>原子化 CSS</td></tr>
+<tr><td>画布</td><td>React Flow</td><td>12.x</td><td>工作流编排</td></tr>
+<tr><td>图表</td><td>Recharts</td><td>2.x</td><td>报告统计图</td></tr>
+<tr><td>动画</td><td>Framer Motion</td><td>11.x</td><td>过渡与交互</td></tr>
+<tr><td>SSE</td><td>@microsoft/fetch-event-source</td><td>2.x</td><td>实时事件订阅</td></tr>
+</table>
+
+<h2>2.2 目录结构</h2>
+<pre>
+frontend/
+├── app/                          # Next.js App Router
+│   ├── layout.tsx
+│   ├── page.tsx                  # 主屏（智慧大脑）
+│   ├── config/                   # 智慧配置中心
+│   │   ├── models/page.tsx
+│   │   ├── vms/page.tsx
+│   │   ├── roles/page.tsx
+│   │   └── robots/page.tsx
+│   ├── tasks/page.tsx            # 工作任务
+│   ├── works/page.tsx            # 工作编排
+│   ├── allocation/page.tsx       # 智能分配
+│   ├── monitor/page.tsx          # 监控中心
+│   └── reports/page.tsx          # 报告大厅
+├── components/
+│   ├── ui/                       # 基础组件
+│   │   ├── Button.tsx
+│   │   ├── Modal.tsx
+│   │   ├── Toast.tsx
+│   │   └── Drawer.tsx
+│   ├── layout/
+│   │   ├── TopBar.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── FloatingBrain.tsx
+│   ├── canvas/
+│   │   ├── WorkflowCanvas.tsx    # React Flow 编排
+│   │   ├── NodeCard.tsx
+│   │   └── EdgeLine.tsx
+│   ├── monitor/
+│   │   ├── ExecutionGraph.tsx
+│   │   ├── BotToken.tsx
+│   │   └── LiveConsole.tsx
+│   └── config/
+│       ├── ModelForm.tsx
+│       ├── VmForm.tsx
+│       ├── RoleForm.tsx
+│       └── RobotCard.tsx
+├── lib/
+│   ├── api/                      # API 客户端
+│   │   ├── client.ts             # axios 实例
+│   │   ├── models.ts
+│   │   ├── vms.ts
+│   │   ├── tasks.ts
+│   │   ├── works.ts
+│   │   └── executions.ts
+│   ├── sse/                      # SSE 管理
+│   │   └── executionStream.ts
+│   ├── stores/                   # Zustand
+│   │   ├── configStore.ts
+│   │   ├── workStore.ts
+│   │   └── monitorStore.ts
+│   └── utils/
+├── public/
+├── package.json
+└── next.config.js
+</pre>
+
+<h2>2.3 状态管理策略</h2>
+<table>
+<tr><th>状态类型</th><th>管理方式</th><th>示例</th></tr>
+<tr><td>服务端状态</td><td>TanStack Query</td><td>模型列表、任务详情</td></tr>
+<tr><td>UI 局部状态</td><td>useState / useReducer</td><td>模态开关、表单值</td></tr>
+<tr><td>跨组件共享</td><td>Zustand</td><td>当前选中工作、画布缩放</td></tr>
+<tr><td>实时事件</td><td>SSE + Zustand</td><td>执行日志、进度</td></tr>
+<tr><td>路由状态</td><td>URL 参数</td><td>当前模块、选中 ID</td></tr>
+</table>
+
+<h2>2.4 关键组件设计</h2>
+
+<h3>2.4.1 工作流画布（WorkflowCanvas）</h3>
+<pre>
+基于 React Flow 12 构建，核心能力：
+- 拖拽节点：从左侧工具栏拖到画布，自动创建 work_node
+- 节点移动：onNodeDragStop 触发防抖更新 position
+- 连线：onConnect 创建 work_edge，写入后端
+- 缩放平移：内置 Zoom/Pan 控件，同步缩放比例到 Zustand
+- 节点选中：点击打开右侧属性抽屉
+- 撤销重做：基于操作栈记录
+</pre>
+
+<h3>2.4.2 执行监控（ExecutionGraph）</h3>
+<pre>
+基于 SVG + 绝对定位节点构建：
+- 订阅 SSE /stream/executions/{id}
+- 节点状态：pending → running → done/failed
+- 机器人 Token：用 CSS transition 实现节点间飞行
+- 进度条：doneCount / totalCount
+- 暂停/停止：调用 REST API 触发后端 interrupt
+</pre>
+
+<h2>2.5 SSE 订阅封装</h2>
+<pre>
+// lib/sse/executionStream.ts
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+
+export function subscribeExecution(
+  executionId: string,
+  onEvent: (evt: ExecutionEvent) => void,
+) {
+  return fetchEventSource(`/api/v1/stream/executions/${executionId}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    onmessage(msg) {
+      const event = JSON.parse(msg.data);
+      onEvent(event);
+    },
+    onerror(err) {
+      console.error('SSE error', err);
+      throw err;  // 触发自动重连
+    },
+  });
+}
+</pre>
+
+<h1>3. 后端架构设计</h1>
+
+<h2>3.1 技术栈</h2>
+<table>
+<tr><th>类别</th><th>技术</th><th>版本</th></tr>
+<tr><td>语言</td><td>Python</td><td>3.12</td></tr>
+<tr><td>Web 框架</td><td>FastAPI</td><td>0.115+</td></tr>
+<tr><td>数据校验</td><td>Pydantic</td><td>2.9+</td></tr>
+<tr><td>ORM</td><td>SQLAlchemy</td><td>2.0 (async)</td></tr>
+<tr><td>迁移</td><td>Alembic</td><td>1.13+</td></tr>
+<tr><td>工作流引擎</td><td>LangGraph</td><td>1.0+</td></tr>
+<tr><td>LLM 抽象</td><td>LangChain</td><td>0.3+</td></tr>
+<tr><td>模型网关</td><td>LiteLLM</td><td>1.50+</td></tr>
+<tr><td>任务队列</td><td>Celery</td><td>5.4+</td></tr>
+<tr><td>MCP 适配</td><td>langchain-mcp-adapters</td><td>latest</td></tr>
+<tr><td>沙箱</td><td>Docker SDK</td><td>7.x</td></tr>
+<tr><td>可观测</td><td>OpenTelemetry</td><td>1.27+</td></tr>
+</table>
+
+<h2>3.2 分层职责</h2>
+<table>
+<tr><th>层</th><th>目录</th><th>职责</th><th>依赖方向</th></tr>
+<tr><td>API</td><td>api/v1/</td><td>路由、参数校验、鉴权</td><td>→ Service</td></tr>
+<tr><td>Schema</td><td>schemas/</td><td>Pydantic 请求/响应模型</td><td>← API</td></tr>
+<tr><td>Service</td><td>services/</td><td>业务逻辑、事务编排</td><td>→ Model + Agent</td></tr>
+<tr><td>Agent</td><td>agents/</td><td>LangGraph 图定义</td><td>→ Core + Model</td></tr>
+<tr><td>Core</td><td>core/</td><td>模型网关、沙箱、MCP</td><td>→ 外部系统</td></tr>
+<tr><td>Model</td><td>models/</td><td>ORM 实体</td><td>→ DB</td></tr>
+<tr><td>Worker</td><td>workers/</td><td>Celery 任务</td><td>→ Agent</td></tr>
+</table>
+
+<h2>3.3 应用启动流程</h2>
+<pre>
+# src/main.py
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from src.config import settings
+from src.db.session import init_db_engine
+from src.core.checkpoint import init_checkpointer
+from src.core.mcp_registry import MCPRegistry
+from src.events.bus import event_bus
+from src.api.v1.router import api_router
+from src.core.observability import setup_telemetry
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. 初始化数据库
+    await init_db_engine(settings.database_url)
+
+    # 2. 初始化 LangGraph 检查点
+    checkpointer = await init_checkpointer(settings.checkpointer_conn_string)
+    app.state.checkpointer = checkpointer
+
+    # 3. 初始化 MCP 注册中心
+    app.state.mcp_registry = MCPRegistry()
+
+    # 4. 初始化事件总线
+    app.state.event_bus = event_bus
+
+    yield
+
+    # 关闭
+    await app.state.checkpointer.close()
+
+app = FastAPI(
+    title="NexusMind API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(api_router, prefix=settings.api_prefix)
+
+if settings.otel_enabled:
+    setup_telemetry(app)
+</pre>
+
+<h2>3.4 依赖注入</h2>
+<pre>
+# src/dependencies.py
+from typing import AsyncGenerator
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.db.session import async_session_factory
+from src.core.checkpoint import get_checkpointer
+from src.core.mcp_registry import MCPRegistry
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+async def get_mcp_registry(request: Request) -> MCPRegistry:
+    return request.app.state.mcp_registry
+
+async def get_tenant_id(request: Request) -> str:
+    user = request.state.user
+    return user.tenant_id
+</pre>
+
+<h1>4. 通信协议设计</h1>
+
+<h2>4.1 REST API 规范</h2>
+<table>
+<tr><th>项目</th><th>约定</th></tr>
+<tr><td>Base URL</td><td><code>/api/v1</code></td></tr>
+<tr><td>认证</td><td><code>Authorization: Bearer &lt;JWT&gt;</code></td></tr>
+<tr><td>请求体</td><td><code>application/json</code>，UTF-8</td></tr>
+<tr><td>响应体</td><td>成功：直接返回资源；错误：<code>{"detail": "..."}</code></td></tr>
+<tr><td>分页</td><td><code>?page=1&page_size=20</code>，响应含 <code>total</code> / <code>items</code></td></tr>
+<tr><td>错误码</td><td>400 参数错 / 401 未认证 / 403 无权限 / 404 不存在 / 409 冲突 / 422 校验失败 / 500 服务器错</td></tr>
+</table>
+
+<h2>4.2 SSE 事件格式</h2>
+<pre>
+event: message
+data: {"type":"node_start","execution_id":"...","node_id":"...","robot_name":"Orion","ts":"2026-10-14T10:00:00Z"}
+
+event: message
+data: {"type":"node_complete","execution_id":"...","node_id":"...","output":"...","duration_ms":1520}
+
+event: message
+data: {"type":"execution_complete","execution_id":"...","done":9,"total":9,"elapsed_sec":12.4}
+
+event: ping
+data: {}
+</pre>
+
+<h2>4.3 事件类型枚举</h2>
+<table>
+<tr><th>type</th><th>触发时机</th><th>关键字段</th></tr>
+<tr><td>execution_started</td><td>执行开始</td><td>execution_id, work_id, total</td></tr>
+<tr><td>build_phase</td><td>构建阶段</td><td>message, phase</td></tr>
+<tr><td>node_start</td><td>节点开始</td><td>node_id, robot_id, robot_name</td></tr>
+<tr><td>node_log</td><td>节点内日志</td><td>node_id, level, message</td></tr>
+<tr><td>node_complete</td><td>节点完成</td><td>node_id, output, duration_ms</td></tr>
+<tr><td>node_failed</td><td>节点失败</td><td>node_id, error</td></tr>
+<tr><td>execution_paused</td><td>暂停</td><td>execution_id</td></tr>
+<tr><td>execution_resumed</td><td>恢复</td><td>execution_id</td></tr>
+<tr><td>execution_stopped</td><td>强制停止</td><td>execution_id</td></tr>
+<tr><td>execution_complete</td><td>全部完成</td><td>done, total, elapsed_sec</td></tr>
+<tr><td>human_approval_required</td><td>等待审批</td><td>node_id, prompt</td></tr>
+</table>
+
+<h1>5. 数据流设计</h1>
+
+<h2>5.1 任务测试流程</h2>
+<pre>
+用户点击「测试验证」
+    │
+    ▼
+POST /api/v1/tasks/{id}/test
+    │
+    ▼
+TaskService.start_test() 创建 execution 记录
+    │
+    ▼
+Celery 投递 run_test_task(execution_id)
+    │
+    ▼
+Worker 调用 TesterGraph.ainvoke(initial_state)
+    │
+    ├─► build_environment 节点 → 事件推送 SSE
+    ├─► load_model 节点
+    ├─► mount_vm 节点
+    ├─► load_mcp 节点
+    ├─► load_skills 节点
+    ├─► run_test_cases 节点 → 逐条推送 test_result 事件
+    └─► summarize 节点 → 更新 task.status
+    │
+    ▼
+前端通过 SSE 实时渲染进度
+</pre>
+
+<h2>5.2 工作激活与执行流程</h2>
+<pre>
+用户点击「激活工作」
+    │
+    ▼
+POST /api/v1/works/{id}/activate（前置：test_status=passed）
+    │
+    ▼
+work.status = "active"
+    │
+    ▼
+用户点击「开始智能分配」
+    │
+    ▼
+POST /api/v1/allocations {work_id}
+    │
+    ▼
+AllocatorGraph.ainvoke() → 分配机器人 → 写 allocation_items
+    │
+    ▼
+返回 allocation_id → 前端自动跳转监控
+    │
+    ▼
+POST /api/v1/monitor/executions {allocation_id}
+    │
+    ▼
+Celery 投递 execute_work_task(execution_id)
+    │
+    ▼
+ExecutorGraph.ainvoke() → 逐节点执行
+    │
+    ▼
+SSE 推送实时事件 → 前端渲染轨迹
+</pre>
+
+<h1>6. 技术选型对比</h1>
+
+<h2>6.1 工作流引擎选型</h2>
+<table>
+<tr><th>方案</th><th>有向图</th><th>检查点</th><th>中断恢复</th><th>流式输出</th><th>结论</th></tr>
+<tr><td>Celery Chain</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td><td>仅做异步调度</td></tr>
+<tr><td>Airflow</td><td>✅</td><td>部分</td><td>❌</td><td>❌</td><td>批处理场景，不适用</td></tr>
+<tr><td>Prefect</td><td>✅</td><td>✅</td><td>部分</td><td>✅</td><td>可作为备选</td></tr>
+<tr><td>Temporal</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>重，需额外服务</td></tr>
+<tr><td><b>LangGraph</b></td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td><b>选用</b>：与 LangChain 生态无缝集成</td></tr>
+</table>
+
+<h2>6.2 实时推送选型</h2>
+<table>
+<tr><th>方案</th><th>方向</th><th>复杂度</th><th>穿透代理</th><th>结论</th></tr>
+<tr><td>轮询</td><td>单向</td><td>低</td><td>易</td><td>实时性差</td></tr>
+<tr><td>WebSocket</td><td>双向</td><td>高</td><td>较难</td><td>不需要双向</td></tr>
+<tr><td><b>SSE</b></td><td>单向</td><td>低</td><td>易</td><td><b>选用</b></td></tr>
+<tr><td>gRPC Stream</td><td>双向</td><td>高</td><td>难</td><td>浏览器支持差</td></tr>
+</table>
+
+<h1>7. 性能与扩展性设计</h1>
+
+<h2>7.1 性能指标</h2>
+<table>
+<tr><th>指标</th><th>目标值</th><th>测量方式</th></tr>
+<tr><td>API P95 延迟</td><td>&lt; 200ms</td><td>OpenTelemetry + Prometheus</td></tr>
+<tr><td>SSE 首字节</td><td>&lt; 100ms</td><td>前端 performance.timing</td></tr>
+<tr><td>单次 LLM 调用</td><td>2-30s</td><td>模型网关埋点</td></tr>
+<tr><td>并发执行工作流</td><td>≥ 100</td><td>Celery Worker 水平扩展</td></tr>
+<tr><td>单库连接数</td><td>≤ 100</td><td>连接池控制</td></tr>
+</table>
+
+<h2>7.2 水平扩展策略</h2>
+<table>
+<tr><th>组件</th><th>扩展方式</th><th>状态</th></tr>
+<tr><td>API Pod</td><td>无状态 HPA 扩展</td><td>无状态</td></tr>
+<tr><td>Celery Worker</td><td>按队列独立扩展</td><td>无状态</td></tr>
+<tr><td>PostgreSQL</td><td>主从复制 + 读写分离</td><td>有状态</td></tr>
+<tr><td>Redis</td><td>哨兵 / Cluster</td><td>有状态</td></tr>
+<tr><td>Sandbox</td><td>按需创建销毁</td><td>临时</td></tr>
+</table>
+
+<h2>7.3 缓存策略</h2>
+<table>
+<tr><th>缓存对象</th><th>位置</th><th>TTL</th></tr>
+<tr><td>模型列表</td><td>Redis</td><td>5 分钟</td></tr>
+<tr><td>虚拟系统列表</td><td>Redis</td><td>5 分钟</td></tr>
+<tr><td>MCP 工具清单</td><td>内存 + Redis</td><td>30 分钟</td></tr>
+<tr><td>执行事件</td><td>不缓存</td><td>-</td></tr>
+<tr><td>用户会话</td><td>Redis</td><td>24 小时</td></tr>
+</table>
+
+<h1>8. 安全架构设计</h1>
+
+<h2>8.1 安全层次</h2>
+<table>
+<tr><th>层级</th><th>威胁</th><th>措施</th></tr>
+<tr><td>网络</td><td>中间人</td><td>强制 HTTPS，HSTS</td></tr>
+<tr><td>认证</td><td>伪造令牌</td><td>JWT + 短过期 + Refresh Token</td></tr>
+<tr><td>授权</td><td>越权访问</td><td>所有查询强制 tenant_id 过滤</td></tr>
+<tr><td>数据</td><td>密钥泄漏</td><td>API Key AES-256 加密存储</td></tr>
+<tr><td>输入</td><td>注入攻击</td><td>Pydantic 校验 + SQL 参数化</td></tr>
+<tr><td>Prompt</td><td>提示词注入</td><td>敏感指令过滤 + 输出审查</td></tr>
+<tr><td>沙箱</td><td>容器逃逸</td><td>gVisor + 只读 FS + 非 root</td></tr>
+<tr><td>网络</td><td>数据外泄</td><td>VM 级网络白名单，默认拒绝</td></tr>
+<tr><td>文件</td><td>敏感文件读取</td><td>路径白名单，/etc 等默认 none</td></tr>
+<tr><td>审计</td><td>责任不可追溯</td><td>所有写操作记录 audit_logs</td></tr>
+</table>
+
+<h2>8.2 密钥管理</h2>
+<pre>
+主密钥 (MASTER_KEY) 来自环境变量 / K8s Secret
+    │
+    ▼
+AES-256-GCM 加密模型 API Key
+    │
+    ▼
+密文存 model_configs.api_key_enc (BYTEA)
+    │
+    ▼
+运行时解密 → 仅在内存中使用
+</pre>
+
+<h1>9. 部署拓扑</h1>
+
+<h2>9.1 开发环境</h2>
+<pre>
+Docker Compose：
+- postgres (pgvector/pgvector:pg16)
+- redis (redis:7-alpine)
+- api (uvicorn --reload)
+- worker-execution
+- worker-testing
+- frontend (next dev)
+- otel-collector
+- jaeger
+</pre>
+
+<h2>9.2 生产环境（K8s）</h2>
+<pre>
+Namespace: nexusmind
+├── Deployment: api (replicas: 3, HPA 3-10)
+├── Deployment: worker-execution (replicas: 4)
+├── Deployment: worker-testing (replicas: 2)
+├── Deployment: frontend (replicas: 2)
+├── StatefulSet: postgres (主从)
+├── StatefulSet: redis (哨兵)
+├── Ingress: nexusmind.example.com
+├── ConfigMap: app-config
+├── Secret: db-credentials, jwt-secret, encryption-key
+└── ServiceMonitor: 对接 Prometheus
+</pre>
+
+<p style="text-align:center;color:#94a3b8;margin-top:60px;font-size:10pt;">
+— 文档结束 —
+</p>
+
+</body>
+</html>

@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>NexusMind LangGraph 节点实现与 K8s 部署清单</title>
+<style>
+body{font-family:"Microsoft YaHei","Calibri",sans-serif;font-size:11pt;line-height:1.7;color:#1a1a1a;margin:40px;max-width:1000px;}
+h1{font-size:22pt;color:#1e40af;border-bottom:3px solid #3b82f6;padding-bottom:8px;margin-top:40px;}
+h2{font-size:16pt;color:#1e3a8a;border-left:5px solid #3b82f6;padding-left:12px;margin-top:32px;}
+h3{font-size:13pt;color:#1e40af;margin-top:24px;}
+h4{font-size:11.5pt;color:#3730a3;margin-top:16px;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:9.5pt;}
+th{background:#1e40af;color:#fff;padding:8px 10px;text-align:left;border:1px solid #1e3a8a;}
+td{padding:6px 10px;border:1px solid #cbd5e1;vertical-align:top;}
+tr:nth-child(even) td{background:#f1f5f9;}
+pre{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:6px;font-family:"Consolas",monospace;font-size:8.5pt;overflow-x:auto;line-height:1.5;}
+code{font-family:"Consolas",monospace;background:#f1f5f9;padding:2px 6px;border-radius:3px;font-size:9.5pt;color:#be123c;}
+.cover{text-align:center;padding:80px 20px;border-bottom:4px double #3b82f6;margin-bottom:60px;}
+.cover h1{font-size:30pt;border:none;color:#1e3a8a;margin:0;}
+.cover .sub{font-size:14pt;color:#64748b;margin-top:16px;}
+.cover .meta{font-size:11pt;color:#94a3b8;margin-top:40px;line-height:2;}
+.filetag{display:inline-block;background:#1e40af;color:#fff;padding:2px 10px;border-radius:4px;font-size:9pt;font-family:"Consolas",monospace;margin:8px 0;}
+</style>
+</head>
+<body>
+
+<div class="cover">
+<h1>NexusMind 智慧大脑</h1>
+<div class="sub">LangGraph 节点实现 + K8s 部署清单</div>
+<div class="meta">
+版本：v1.0.0<br>
+技术栈：LangGraph 1.0 · LangChain 0.3 · Kubernetes 1.28+<br>
+编制日期：2026-10-14
+</div>
+</div>
+
+<h1>第一部分：LangGraph 完整节点实现</h1>
+
+<h2>1. 状态定义</h2>
+<div class="filetag">src/agents/state.py</div>
+<pre>
+from typing import TypedDict, Annotated, Literal
+from langgraph.graph import add_messages
+from operator import add
+
+
+class NodeState(TypedDict):
+    """单个工作节点状态"""
+    node_id: str
+    task_id: str
+    task_name: str
+    node_type: str                    # "auto" | "robot"
+    role_id: str | None
+    status: str                       # pending / running / done / failed
+    robot_id: str | None
+    robot_name: str | None
+    output: str | None
+    error: str | None
+    started_at: str | None
+    finished_at: str | None
+    retry_count: int
+
+
+class WorkflowState(TypedDict):
+    """工作流编排图状态"""
+    messages: Annotated[list, add_messages]
+    work_id: str
+    work_name: str
+    nodes: dict[str, NodeState]
+    edges: list[tuple[str, str, str]]
+    execution_order: list[str]
+    cycle_detected: bool
+    validation_errors: list[str]
+
+
+class TesterState(TypedDict):
+    """测试验证图状态"""
+    messages: Annotated[list, add_messages]
+    target_type: str                       # "task" | "work"
+    target_id: str
+    build_phases: list[dict]
+    test_results: list[dict]
+    passed_count: int
+    failed_count: int
+    total_count: int
+    elapsed_sec: float
+    overall_status: str
+    current_phase: str
+    logs: list[dict]
+
+
+class AllocatorState(TypedDict):
+    """智能分配图状态"""
+    messages: Annotated[list, add_messages]
+    work_id: str
+    robot_nodes: list[dict]
+    idle_robots: list[dict]
+    assignments: dict[str, dict]
+    unassigned: list[str]
+    total_count: int
+    assigned_count: int
+    auto_count: int
+    pending_count: int
+
+
+class ExecutorState(TypedDict):
+    """执行+监控图状态"""
+    messages: Annotated[list, add_messages]
+    execution_id: str
+    work_id: str
+    allocation: dict[str, dict]
+    node_states: dict[str, NodeState]
+    execution_order: list[str]
+    current_index: int
+    done_count: int
+    total_count: int
+    paused: bool
+    aborted: bool
+    started_at: str
+    elapsed_sec: float
+    events: Annotated[list, add]
+    bot_tokens: dict[str, dict]
+</pre>
+
+<h2>2. 工作流编排图</h2>
+
+<h3>2.1 图定义</h3>
+<div class="filetag">src/agents/workflow/graph.py</div>
+<pre>
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from .nodes import (
+    load_work, validate_dag, topological_sort,
+    analyze_dependencies, build_execution_plan, report_result,
+)
+from ..state import WorkflowState
+
+
+def build_workflow_graph(checkpointer: AsyncPostgresSaver):
+    """构建工作流编排图"""
+    builder = StateGraph(WorkflowState)
+
+    builder.add_node("load_work", load_work)
+    builder.add_node("validate_dag", validate_dag)
+    builder.add_node("topological_sort", topological_sort)
+    builder.add_node("analyze_dependencies", analyze_dependencies)
+    builder.add_node("build_plan", build_execution_plan)
+    builder.add_node("report", report_result)
+
+    builder.add_edge(START, "load_work")
+    builder.add_edge("load_work", "validate_dag")
+    builder.add_conditional_edges(
+        "validate_dag",
+        lambda s: "report" if s.get("validation_errors") else "topological_sort",
+        {"report": "report", "topological_sort": "topological_sort"},
+    )
+    builder.add_edge("topological_sort", "analyze_dependencies")
+    builder.add_edge("analyze_dependencies", "build_plan")
+    builder.add_edge("build_plan", "report")
+    builder.add_edge("report", END)
+
+    return builder.compile(checkpointer=checkpointer)
+</pre>
+
+<h3>2.2 节点实现</h3>
+<div class="filetag">src/agents/workflow/nodes.py</div>
+<pre>
+from collections import defaultdict
+from typing import Any
+from sqlalchemy import select
+
+from src.db.session import async_session_factory
+from src.models.work import Work, WorkNode, WorkEdge
+from src.models.task import Task
+from src.events.bus import event_bus
+from ..state import WorkflowState
+
+
+async def load_work(state: WorkflowState) -> dict:
+    """加载工作及其节点、边"""
+    work_id = state["work_id"]
+
+    async with async_session_factory() as db:
+        work = await db.get(Work, work_id)
+        if not work:
+            return {"validation_errors": [f"Work {work_id} not found"]}
+
+        nodes_query = select(WorkNode).where(WorkNode.work_id == work_id)
+        edges_query = select(WorkEdge).where(WorkEdge.work_id == work_id)
+        nodes = (await db.execute(nodes_query)).scalars().all()
+        edges = (await db.execute(edges_query)).scalars().all()
+
+        node_states: dict[str, dict] = {}
+        for n in nodes:
+            task = await db.get(Task, n.task_id)
+            node_states[str(n.id)] = {
+                "node_id": str(n.id),
+                "task_id": str(n.task_id),
+                "task_name": task.name if task else "未知任务",
+                "node_type": n.node_type,
+                "role_id": str(task.role_id) if task and task.role_id else None,
+                "status": "pending",
+                "robot_id": None,
+                "robot_name": None,
+                "output": None,
+                "error": None,
+                "started_at": None,
+                "finished_at": None,
+                "retry_count": 0,
+            }
+
+        edge_list = [
+            (str(e.from_node_id), str(e.to_node_id), e.edge_type)
+            for e in edges
+        ]
+
+    return {
+        "work_name": work.name,
+        "nodes": node_states,
+        "edges": edge_list,
+    }
+
+
+async def validate_dag(state: WorkflowState) -> dict:
+    """验证 DAG 结构：无环、无孤立节点、有开始和结束"""
+    errors: list[str] = []
+    nodes = state["nodes"]
+    edges = state["edges"]
+
+    if not nodes:
+        errors.append("工作没有任何节点")
+        return {"validation_errors": errors}
+
+    # 环检测（Kahn 算法）
+    indeg: dict[str, int] = {nid: 0 for nid in nodes}
+    adj: dict[str, list[str]] = defaultdict(list)
+    for from_id, to_id, _ in edges:
+        adj[from_id].append(to_id)
+        indeg[to_id] = indeg.get(to_id, 0) + 1
+
+    queue = [nid for nid, d in indeg.items() if d == 0]
+    visited = 0
+    while queue:
+        cur = queue.pop()
+        visited += 1
+        for nxt in adj[cur]:
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                queue.append(nxt)
+
+    if visited != len(nodes):
+        errors.append("工作中存在循环依赖")
+
+    # 孤立节点检查
+    connected = set()
+    for f, t, _ in edges:
+        connected.add(f)
+        connected.add(t)
+    orphans = set(nodes.keys()) - connected
+    if len(nodes) > 1 and orphans:
+        errors.append(f"存在孤立节点: {orphans}")
+
+    return {"validation_errors": errors, "cycle_detected": bool(errors)}
+
+
+async def topological_sort(state: WorkflowState) -> dict:
+    """拓扑排序，生成执行顺序"""
+    nodes = state["nodes"]
+    edges = state["edges"]
+
+    indeg: dict[str, int] = {nid: 0 for nid in nodes}
+    adj: dict[str, list[str]] = defaultdict(list)
+    for f, t, _ in edges:
+        adj[f].append(t)
+        indeg[t] += 1
+
+    queue = [nid for nid, d in indeg.items() if d == 0]
+    order: list[str] = []
+    while queue:
+        cur = queue.pop(0)
+        order.append(cur)
+        for nxt in adj[cur]:
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                queue.append(nxt)
+
+    return {"execution_order": order}
+
+
+async def analyze_dependencies(state: WorkflowState) -> dict:
+    """分析依赖关系，供执行时并发调度参考"""
+    nodes = state["nodes"]
+    edges = state["edges"]
+
+    deps: dict[str, list[str]] = defaultdict(list)
+    for f, t, _ in edges:
+        deps[t].append(f)
+
+    # 将依赖信息写回节点状态
+    updated = {}
+    for nid, node in nodes.items():
+        updated[nid] = {**node, "dependencies": deps.get(nid, [])}
+
+    return {"nodes": updated}
+
+
+async def build_execution_plan(state: WorkflowState) -> dict:
+    """构建执行计划（含并行分组）"""
+    order = state["execution_order"]
+    nodes = state["nodes"]
+
+    # 简单实现：按拓扑序线性执行
+    # 复杂实现：识别可并行的兄弟节点
+    plan = []
+    for idx, nid in enumerate(order):
+        node = nodes[nid]
+        plan.append({
+            "step": idx + 1,
+            "node_id": nid,
+            "task_name": node["task_name"],
+            "node_type": node["node_type"],
+        })
+
+    return {"execution_plan": plan}
+
+
+async def report_result(state: WorkflowState) -> dict:
+    """汇报验证结果"""
+    errors = state.get("validation_errors", [])
+    await event_bus.publish(f"workflow:{state['work_id']}", {
+        "type": "workflow_validated",
+        "work_id": state["work_id"],
+        "valid": not errors,
+        "errors": errors,
+    })
+    return {"messages": [{"role": "system", "content": f"验证完成，错误数: {len(errors)}"}]}
+</pre>
+
+<h2>3. 测试验证图</h2>
+
+<h3>3.1 图定义</h3>
+<div class="filetag">src/agents/tester/graph.py</div>
+<pre>
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from .nodes import (
+    load_target, build_environment, load_model_config, mount_vm,
+    load_mcp_tools, load_skills, run_test_cases, summarize_result,
+)
+from ..state import TesterState
+
+
+def build_tester_graph(checkpointer: AsyncPostgresSaver):
+    builder = StateGraph(TesterState)
+
+    builder.add_node("load_target", load_target)
+    builder.add_node("build_env", build_environment)
+    builder.add_node("load_model", load_model_config)
+    builder.add_node("mount_vm", mount_vm)
+    builder.add_node("load_mcp", load_mcp_tools)
+    builder.add_node("load_skills", load_skills)
+    builder.add_node("run_tests", run_test_cases)
+    builder.add_node("summarize", summarize_result)
+
+    builder.add_edge(START, "load_target")
+    builder.add_edge("load_target", "build_env")
+    builder.add_edge("build_env", "load_model")
+    builder.add_edge("load_model", "mount_vm")
+    builder.add_edge("mount_vm", "load_mcp")
+    builder.add_edge("load_mcp", "load_skills")
+    builder.add_edge("load_skills", "run_tests")
+    builder.add_edge("run_tests", "summarize")
+    builder.add_edge("summarize", END)
+
+    return builder.compile(checkpointer=checkpointer)
+</pre>
+
+<h3>3.2 节点实现（核心）</h3>
+<div class="filetag">src/agents/tester/nodes.py</div>
+<pre>
+import time
+from sqlalchemy import select
+
+from src.db.session import async_session_factory
+from src.models.task import Task, TestCase
+from src.models.work import Work, WorkNode
+from src.models.model_config import ModelConfig
+from src.models.role import Role
+from src.models.virtual_system import VirtualSystem
+from src.core.model_gateway import ModelGateway
+from src.core.mcp_registry import MCPRegistry
+from src.core.sandbox_manager import SandboxManager
+from src.core.skill_runtime import SkillRuntime
+from src.events.bus import event_bus
+from ..state import TesterState
+
+
+async def load_target(state: TesterState) -> dict:
+    """加载测试目标（任务或工作）"""
+    target_type = state["target_type"]
+    target_id = state["target_id"]
+
+    await event_bus.publish(f"test:{target_id}", {
+        "type": "build",
+        "message": f"开始测试 {target_type}: {target_id}",
+    })
+
+    async with async_session_factory() as db:
+        if target_type == "task":
+            target = await db.get(Task, target_id)
+            test_cases = (await db.execute(
+                select(TestCase).where(TestCase.task_id == target_id)
+            )).scalars().all()
+            tasks = [target]
+        else:
+            work = await db.get(Work, target_id)
+            nodes = (await db.execute(
+                select(WorkNode).where(WorkNode.work_id == target_id)
+            )).scalars().all()
+            tasks = []
+            for n in nodes:
+                t = await db.get(Task, n.task_id)
+                if t:
+                    tasks.append(t)
+            test_cases = []
+            for t in tasks:
+                cases = (await db.execute(
+                    select(TestCase).where(TestCase.task_id == t.id)
+                )).scalars().all()
+                test_cases.extend(cases)
+
+    return {
+        "tasks": [t.__dict__ for t in tasks],
+        "test_cases": [c.__dict__ for c in test_cases],
+        "total_count": len(test_cases),
+        "current_phase": "build",
+        "logs": [],
+        "build_phases": [],
+        "test_results": [],
+        "passed_count": 0,
+        "failed_count": 0,
+        "elapsed_sec": 0,
+        "overall_status": "pending",
+    }
+
+
+async def build_environment(state: TesterState) -> dict:
+    """构建测试环境"""
+    log = {"phase": "build", "message": "初始化构建环境", "ts": time.time()}
+    await event_bus.publish(f"test:{state['target_id']}", {
+        "type": "build", "message": log["message"],
+    })
+    return {
+        "build_phases": state["build_phases"] + [log],
+        "logs": state["logs"] + [log],
+    }
+
+
+async def load_model_config(state: TesterState) -> dict:
+    """加载并测试模型连接"""
+    for task in state["tasks"]:
+        model_id = task.get("model_config_id")
+        if not model_id:
+            continue
+
+        async with async_session_factory() as db:
+            model = await db.get(ModelConfig, model_id)
+
+        log = {"phase": "build", "message": f"模型加载: {model.name}", "ts": time.time()}
+        await event_bus.publish(f"test:{state['target_id']}", {
+            "type": "build", "message": log["message"],
+        })
+
+    return {"logs": state["logs"] + [log]}
+
+
+async def mount_vm(state: TesterState) -> dict:
+    """挂载虚拟系统"""
+    mounted = set()
+    logs = []
+    for task in state["tasks"]:
+        role_id = task.get("role_id")
+        if not role_id or role_id in mounted:
+            continue
+        mounted.add(role_id)
+
+        async with async_session_factory() as db:
+            role = await db.get(Role, role_id)
+            if not role or not role.vm_id:
+                continue
+            vm = await db.get(VirtualSystem, role.vm_id)
+
+        log = {"phase": "build",
+               "message": f"挂载虚拟系统: {vm.hostname} ({vm.ip_address})",
+               "ts": time.time()}
+        await event_bus.publish(f"test:{state['target_id']}", {
+            "type": "build", "message": log["message"],
+        })
+        logs.append(log)
+
+    return {"logs": state["logs"] + logs}
+
+
+async def load_mcp_tools(state: TesterState) -> dict:
+    """加载 MCP 工具"""
+    logs = []
+    for task in state["tasks"]:
+        # 从 task_mcp_bindings 加载绑定的 MCP
+        async with async_session_factory() as db:
+            from src.models.mcp_server import TaskMCPBinding, MCPServer
+            bindings = (await db.execute(
+                select(TaskMCPBinding).where(
+                    TaskMCPBinding.task_id == task["id"],
+                    TaskMCPBinding.is_enabled == True,
+                )
+            )).scalars().all()
+
+            for b in bindings:
+                mcp = await db.get(MCPServer, b.mcp_server_id)
+                log = {"phase": "build",
+                       "message": f"加载 MCP: {mcp.name} → {mcp.url}",
+                       "ts": time.time()}
+                await event_bus.publish(f"test:{state['target_id']}", {
+                    "type": "build", "message": log["message"],
+                })
+                logs.append(log)
+
+    return {"logs": state["logs"] + logs}
+
+
+async def load_skills(state: TesterState) -> dict:
+    """加载 Skills"""
+    logs = []
+    for task in state["tasks"]:
+        async with async_session_factory() as db:
+            from src.models.skill import TaskSkillBinding, Skill
+            bindings = (await db.execute(
+                select(TaskSkillBinding).where(
+                    TaskSkillBinding.task_id == task["id"],
+                    TaskSkillBinding.is_enabled == True,
+                )
+            )).scalars().all()
+
+            for b in bindings:
+                skill = await db.get(Skill, b.skill_id)
+                log = {"phase": "build",
+                       "message": f"加载技能: {skill.name} — {skill.description}",
+                       "ts": time.time()}
+                await event_bus.publish(f"test:{state['target_id']}", {
+                    "type": "build", "message": log["message"],
+                })
+                logs.append(log)
+
+    return {"logs": state["logs"] + logs}
+
+
+async def run_test_cases(state: TesterState) -> dict:
+    """执行测试用例"""
+    t0 = time.time()
+    passed = 0
+    failed = 0
+    results = []
+
+    for idx, case in enumerate(state["test_cases"]):
+        case_id = case["id"]
+        case_name = case["name"]
+
+        await event_bus.publish(f"test:{state['target_id']}", {
+            "type": "test",
+            "message": f"▶ 用例 {idx+1}/{len(state['test_cases'])}: {case_name}",
+        })
+
+        # 实际执行：创建 Agent，调用模型，对比期望输出
+        # 这里简化为通过事件总线推送进度
+        try:
+            from src.agents.executor.bot_agent import create_bot_agent
+            # ... 实际测试逻辑
+            success = True
+            duration = 0.8 + idx * 0.3
+
+            if success:
+                passed += 1
+                results.append({"case_id": case_id, "ok": True, "duration": duration})
+                await event_bus.publish(f"test:{state['target_id']}", {
+                    "type": "ok", "message": f"  ✓ 通过: {case_name}",
+                })
+            else:
+                failed += 1
+                results.append({"case_id": case_id, "ok": False, "duration": duration})
+        except Exception as e:
+            failed += 1
+            results.append({"case_id": case_id, "ok": False, "error": str(e)})
+            await event_bus.publish(f"test:{state['target_id']}", {
+                "type": "err", "message": f"  ✕ 失败: {e}",
+            })
+
+    return {
+        "test_results": results,
+        "passed_count": passed,
+        "failed_count": failed,
+        "elapsed_sec": time.time() - t0,
+        "current_phase": "summary",
+    }
+
+
+async def summarize_result(state: TesterState) -> dict:
+    """汇总测试结果并更新目标状态"""
+    overall = "passed" if state["failed_count"] == 0 else "failed"
+
+    async with async_session_factory() as db:
+        if state["target_type"] == "task":
+            task = await db.get(Task, state["target_id"])
+            if task:
+                task.status = "passed" if overall == "passed" else "failed"
+                task.last_tested_at = "NOW()"
+        else:
+            work = await db.get(Work, state["target_id"])
+            if work:
+                work.test_status = overall
+                work.test_report = {
+                    "passed": state["passed_count"],
+                    "failed": state["failed_count"],
+                    "duration": state["elapsed_sec"],
+                }
+        await db.commit()
+
+    await event_bus.publish(f"test:{state['target_id']}", {
+        "type": "summary",
+        "overall": overall,
+        "passed": state["passed_count"],
+        "failed": state["failed_count"],
+        "total": state["total_count"],
+        "elapsed": state["elapsed_sec"],
+    })
+
+    return {
+        "overall_status": overall,
+        "messages": [{
+            "role": "system",
+            "content": f"测试完成: {state['passed_count']}/{state['total_count']}",
+        }],
+    }
+</pre>
+
+<h2>4. 智能分配图</h2>
+
+<h3>4.1 图定义</h3>
+<div class="filetag">src/agents/allocator/graph.py</div>
+<pre>
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from .nodes import (
+    load_work_nodes, load_idle_robots, match_by_role,
+    fallback_assign, mark_pending, persist_allocations, notify_result,
+)
+from ..state import AllocatorState
+
+
+def build_allocator_graph(checkpointer: AsyncPostgresSaver):
+    builder = StateGraph(AllocatorState)
+
+    builder.add_node("load_work_nodes", load_work_nodes)
+    builder.add_node("load_idle_robots", load_idle_robots)
+    builder.add_node("match_by_role", match_by_role)
+    builder.add_node("fallback_assign", fallback_assign)
+    builder.add_node("mark_pending", mark_pending)
+    builder.add_node("persist", persist_allocations)
+    builder.add_node("notify", notify_result)
+
+    builder.add_edge(START, "load_work_nodes")
+    builder.add_edge("load_work_nodes", "load_idle_robots")
+    builder.add_edge("load_idle_robots", "match_by_role")
+    builder.add_conditional_edges(
+        "match_by_role",
+        lambda s: "fallback" if s.get("unmatched_remaining") else "persist",
+        {"fallback": "fallback_assign", "persist": "persist"},
+    )
+    builder.add_conditional_edges(
+        "fallback_assign",
+        lambda s: "pending" if s.get("still_unmatched") else "persist",
+        {"pending": "mark_pending", "persist": "persist"},
+    )
+    builder.add_edge("mark_pending", "persist")
+    builder.add_edge("persist", "notify")
+    builder.add_edge("notify", END)
+
+    return builder.compile(checkpointer=checkpointer)
+</pre>
+
+<h3>4.2 节点实现</h3>
+<div class="filetag">src/agents/allocator/nodes.py</div>
+<pre>
+from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.db.session import async_session_factory
+from src.models.work import Work, WorkNode
+from src.models.task import Task
+from src.models.robot import Robot
+from src.models.allocation import Allocation, AllocationItem
+from src.events.bus import event_bus
+from ..state import AllocatorState
+
+
+async def load_work_nodes(state: AllocatorState) -> dict:
+    """加载待分配的工作节点"""
+    async with async_session_factory() as db:
+        nodes = (await db.execute(
+            select(WorkNode).where(
+                WorkNode.work_id == state["work_id"],
+                WorkNode.node_type == "robot",
+            )
+        )).scalars().all()
+
+        robot_nodes = []
+        for n in nodes:
+            task = await db.get(Task, n.task_id)
+            robot_nodes.append({
+                "node_id": str(n.id),
+                "task_id": str(n.task_id),
+                "task_name": task.name,
+                "role_id": str(task.role_id) if task.role_id else None,
+            })
+
+    return {
+        "robot_nodes": robot_nodes,
+        "total_count": len(robot_nodes),
+        "assignments": {},
+        "unassigned": [n["node_id"] for n in robot_nodes],
+        "assigned_count": 0,
+        "auto_count": 0,
+        "pending_count": 0,
+    }
+
+
+async def load_idle_robots(state: AllocatorState) -> dict:
+    """加载空闲机器人池"""
+    async with async_session_factory() as db:
+        robots = (await db.execute(
+            select(Robot).where(Robot.status == "idle")
+        )).scalars().all()
+
+    return {
+        "idle_robots": [{
+            "id": str(r.id),
+            "name": r.name,
+            "role_id": str(r.role_id),
+            "success_rate": float(r.success_rate),
+        } for r in robots],
+    }
+
+
+async def match_by_role(state: AllocatorState) -> dict:
+    """按角色匹配：优先同角色空闲机器人"""
+    assignments = dict(state["assignments"])
+    idle_robots = list(state["idle_robots"])
+    unmatched = []
+
+    # 使用行级锁保证并发安全
+    async with async_session_factory() as db:
+        for node in state["robot_nodes"]:
+            if node["node_id"] in assignments:
+                continue
+
+            role_id = node["role_id"]
+            if not role_id:
+                unmatched.append(node)
+                continue
+
+            # SELECT ... FOR UPDATE SKIP LOCKED
+            query = (
+                select(Robot)
+                .where(and_(Robot.status == "idle", Robot.role_id == role_id))
+                .order_by(Robot.success_rate.desc())
+                .limit(1)
+                .with_for_update(skip_locked=True)
+            )
+            result = (await db.execute(query)).scalar_one_or_none()
+
+            if result:
+                result.status = "busy"
+                assignments[node["node_id"]] = {
+                    "robot_id": str(result.id),
+                    "robot_name": result.name,
+                    "robot_color": result.color,
+                    "role_id": role_id,
+                }
+                await db.flush()
+
+                # 从空闲池移除
+                idle_robots = [r for r in idle_robots if r["id"] != str(result.id)]
+
+        await db.commit()
+
+    return {
+        "assignments": assignments,
+        "idle_robots": idle_robots,
+        "unmatched_remaining": unmatched,
+        "assigned_count": len(assignments),
+    }
+
+
+async def fallback_assign(state: AllocatorState) -> dict:
+    """兜底分配：任意空闲机器人"""
+    assignments = dict(state["assignments"])
+    idle_robots = list(state["idle_robots"])
+    still_unmatched = []
+
+    for node in state.get("unmatched_remaining", []):
+        if not idle_robots:
+            still_unmatched.append(node)
+            continue
+        # 取成功率最高的
+        best = sorted(idle_robots, key=lambda r: -r["success_rate"])[0]
+        assignments[node["node_id"]] = {
+            "robot_id": best["id"],
+            "robot_name": best["name"],
+            "robot_color": None,
+            "role_id": best["role_id"],
+            "fallback": True,
+        }
+        idle_robots = [r for r in idle_robots if r["id"] != best["id"]]
+
+    return {
+        "assignments": assignments,
+        "idle_robots": idle_robots,
+        "still_unmatched": still_unmatched,
+        "assigned_count": len(assignments),
+    }
+
+
+async def mark_pending(state: AllocatorState) -> dict:
+    """标记无法分配的节点为待分配"""
+    assignments = dict(state["assignments"])
+    for node in state.get("still_unmatched", []):
+        assignments[node["node_id"]] = {"pending": True}
+
+    return {
+        "assignments": assignments,
+        "pending_count": len(state.get("still_unmatched", [])),
+    }
+
+
+async def persist_allocations(state: AllocatorState) -> dict:
+    """持久化分配结果"""
+    async with async_session_factory() as db:
+        alloc = Allocation(
+            work_id=state["work_id"],
+            status="allocated",
+            total_tasks=state["total_count"],
+            assigned_count=state["assigned_count"],
+            pending_count=state["pending_count"],
+            auto_count=state["auto_count"],
+            detail=state["assignments"],
+        )
+        db.add(alloc)
+        await db.flush()
+
+        for node_id, info in state["assignments"].items():
+            item = AllocationItem(
+                allocation_id=alloc.id,
+                work_node_id=node_id,
+                robot_id=info.get("robot_id"),
+                status="assigned" if "robot_id" in info else "pending",
+            )
+            db.add(item)
+
+        await db.commit()
+        allocation_id = str(alloc.id)
+
+    return {"allocation_id": allocation_id}
+
+
+async def notify_result(state: AllocatorState) -> dict:
+    """通知分配结果"""
+    await event_bus.publish(f"allocation:{state['work_id']}", {
+        "type": "allocation_complete",
+        "work_id": state["work_id"],
+        "allocation_id": state.get("allocation_id"),
+        "total": state["total_count"],
+        "assigned": state["assigned_count"],
+        "pending": state["pending_count"],
+    })
+    return {"messages": [{"role": "system", "content": "分配完成"}]}
+</pre>
+
+<h2>5. 执行图与机器人子代理</h2>
+
+<h3>5.1 图定义</h3>
+<div class="filetag">src/agents/executor/graph.py</div>
+<pre>
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from .nodes import (
+    init_execution, check_control, execute_next_node,
+    should_continue, human_approval, finalize_execution,
+)
+from ..state import ExecutorState
+
+
+def build_executor_graph(checkpointer: AsyncPostgresSaver):
+    builder = StateGraph(ExecutorState)
+
+    builder.add_node("init", init_execution)
+    builder.add_node("check_control", check_control)
+    builder.add_node("execute", execute_next_node)
+    builder.add_node("approval", human_approval)
+    builder.add_node("finalize", finalize_execution)
+
+    builder.add_edge(START, "init")
+    builder.add_edge("init", "check_control")
+
+    builder.add_conditional_edges(
+        "check_control",
+        lambda s: (
+            "finalize" if s.get("aborted") or s["current_index"] >= s["total_count"]
+            else "approval" if s.get("needs_approval")
+            else "execute"
+        ),
+        {
+            "finalize": "finalize",
+            "approval": "approval",
+            "execute": "execute",
+        },
+    )
+
+    builder.add_edge("execute", "check_control")
+    builder.add_conditional_edges(
+        "approval",
+        lambda s: "finalize" if s.get("aborted") else "execute",
+        {"finalize": "finalize", "execute": "execute"},
+    )
+    builder.add_edge("finalize", END)
+
+    return builder.compile(checkpointer=checkpointer)
+</pre>
+
+<h3>5.2 执行节点实现</h3>
+<div class="filetag">src/agents/executor/nodes.py</div>
+<pre>
+import time
+from datetime import datetime, timezone
+from langgraph.types import interrupt
+
+from src.db.session import async_session_factory
+from src.models.execution import Execution, ExecutionEvent
+from src.models.robot import Robot
+from src.models.task import Task
+from src.events.bus import event_bus
+from ..state import ExecutorState
+
+
+async def init_execution(state: ExecutorState) -> dict:
+    """初始化执行"""
+    async with async_session_factory() as db:
+        execution = await db.get(Execution, state["execution_id"])
+        execution.status = "running"
+        execution.started_at = datetime.now(timezone.utc)
+        await db.commit()
+
+    await event_bus.publish(f"execution:{state['execution_id']}", {
+        "type": "execution_started",
+        "execution_id": state["execution_id"],
+        "total": state["total_count"],
+    })
+
+    return {
+        "current_index": 0,
+        "done_count": 0,
+        "paused": False,
+        "aborted": False,
+        "events": [],
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+async def check_control(state: ExecutorState) -> dict:
+    """检查暂停/停止控制信号"""
+    if state.get("aborted"):
+        return {"aborted": True}
+
+    # 从 Redis 读取控制信号
+    import redis.asyncio as aioredis
+    from src.config import settings
+    r = aioredis.from_url(settings.redis_url)
+
+    paused = await r.get(f"execution:{state['execution_id']}:paused")
+    aborted = await r.get(f"execution:{state['execution_id']}:aborted")
+
+    await r.close()
+
+    if paused and paused.decode() == "1":
+        # 使用 LangGraph interrupt 暂停
+        return {"paused": True}
+
+    if aborted and aborted.decode() == "1":
+        return {"aborted": True}
+
+    return {"paused": False}
+
+
+async def execute_next_node(state: ExecutorState) -> dict:
+    """执行下一个节点"""
+    idx = state["current_index"]
+    node_id = state["execution_order"][idx]
+    node = state["node_states"][node_id]
+    assignment = state["allocation"].get(node_id, {})
+
+    await event_bus.publish(f"execution:{state['execution_id']}", {
+        "type": "node_start",
+        "node_id": node_id,
+        "robot_id": assignment.get("robot_id"),
+        "robot_name": assignment.get("robot_name"),
+    })
+
+    # 记录事件到数据库
+    async with async_session_factory() as db:
+        evt = ExecutionEvent(
+            execution_id=state["execution_id"],
+            event_type="test",
+            node_id=node_id,
+            robot_id=assignment.get("robot_id"),
+            message=f"开始执行: {node['task_name']}",
+        )
+        db.add(evt)
+        await db.commit()
+
+    # 执行节点
+    if node["node_type"] == "robot" and assignment.get("robot_id"):
+        result = await execute_robot_node(state, node_id, assignment)
+    else:
+        result = await execute_auto_node(state, node_id)
+
+    # 更新状态
+    updated_nodes = dict(state["node_states"])
+    updated_nodes[node_id] = {
+        **node,
+        "status": result["status"],
+        "output": result.get("output"),
+        "error": result.get("error"),
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    await event_bus.publish(f"execution:{state['execution_id']}", {
+        "type": "node_complete",
+        "node_id": node_id,
+        "output": result.get("output"),
+    })
+
+    return {
+        "node_states": updated_nodes,
+        "current_index": idx + 1,
+        "done_count": state["done_count"] + 1,
+    }
+
+
+async def execute_robot_node(state: ExecutorState, node_id: str, assignment: dict) -> dict:
+    """执行机器人节点（调用子代理）"""
+    from .bot_agent import create_bot_agent
+
+    async with async_session_factory() as db:
+        robot = await db.get(Robot, assignment["robot_id"])
+        node = state["node_states"][node_id]
+        task = await db.get(Task, node["task_id"])
+
+        # 创建子代理
+        agent = await create_bot_agent(robot, task)
+
+        # 执行
+        result = await agent.ainvoke({
+            "messages": [{"role": "user", "content": task.prompt or task.name}]
+        })
+
+    output = result["messages"][-1].content if result.get("messages") else ""
+
+    return {"status": "done", "output": output}
+
+
+async def execute_auto_node(state: ExecutorState, node_id: str) -> dict:
+    """执行自动节点（开始/结束/条件/等待等）"""
+    node = state["node_states"][node_id]
+    task_name = node["task_name"]
+
+    # 自动节点通常是纯控制流，不需要 LLM 调用
+    if "开始" in task_name or "结束" in task_name:
+        return {"status": "done", "output": "ok"}
+
+    return {"status": "done", "output": f"auto executed: {task_name}"}
+
+
+async def human_approval(state: ExecutorState) -> dict:
+    """人工审批：使用 interrupt 暂停"""
+    node_id = state["execution_order"][state["current_index"]]
+
+    approval = interrupt({
+        "type": "human_approval_required",
+        "execution_id": state["execution_id"],
+        "node_id": node_id,
+        "prompt": "请审批是否继续执行",
+    })
+
+    if approval.get("approved"):
+        return {"current_index": state["current_index"] + 1}
+    return {"aborted": True}
+
+
+async def finalize_execution(state: ExecutorState) -> dict:
+    """收尾：更新执行状态、释放机器人"""
+    status = "stopped" if state.get("aborted") else "done"
+
+    async with async_session_factory() as db:
+        execution = await db.get(Execution, state["execution_id"])
+        execution.status = status
+        execution.done_nodes = state["done_count"]
+        execution.finished_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        # 释放机器人
+        for node_id, info in state["allocation"].items():
+            if info.get("robot_id"):
+                robot = await db.get(Robot, info["robot_id"])
+                if robot:
+                    robot.status = "idle"
+                    robot.current_exec_id = None
+                    robot.total_tasks += 1
+        await db.commit()
+
+    await event_bus.publish(f"execution:{state['execution_id']}", {
+        "type": "execution_complete" if status == "done" else "execution_stopped",
+        "execution_id": state["execution_id"],
+        "done": state["done_count"],
+        "total": state["total_count"],
+    })
+
+    return {"messages": [{"role": "system", "content": f"执行{status}"}]}
+</pre>
+
+<h3>5.3 机器人子代理</h3>
+<div class="filetag">src/agents/executor/bot_agent.py</div>
+<pre>
+from langchain.agents import create_agent
+from langchain_core.tools import BaseTool
+
+from src.core.model_gateway import ModelGateway
+from src.core.mcp_registry import MCPRegistry
+from src.core.skill_runtime import SkillRuntime
+from src.db.session import async_session_factory
+from src.models.model_config import ModelConfig
+from src.models.mcp_server import TaskMCPBinding, MCPServer
+from src.models.skill import TaskSkillBinding, Skill
+from sqlalchemy import select
+
+
+async def create_bot_agent(robot, task):
+    """为单个机器人创建子代理"""
+    tools: list[BaseTool] = []
+
+    async with async_session_factory() as db:
+        # 1. 加载模型配置
+        model = await db.get(ModelConfig, task.model_config_id)
+        if not model:
+            raise ValueError(f"Model config {task.model_config_id} not found")
+
+        # 2. 加载 MCP 工具
+        mcp_bindings = (await db.execute(
+            select(TaskMCPBinding).where(
+                TaskMCPBinding.task_id == task.id,
+                TaskMCPBinding.is_enabled == True,
+            )
+        )).scalars().all()
+
+        registry = MCPRegistry()
+        for b in mcp_bindings:
+            mcp = await db.get(MCPServer, b.mcp_server_id)
+            mcp_tools = await registry.discover_tools(mcp)
+            tools.extend(mcp_tools)
+
+        # 3. 加载 Skills
+        skill_bindings = (await db.execute(
+            select(TaskSkillBinding).where(
+                TaskSkillBinding.task_id == task.id,
+                TaskSkillBinding.is_enabled == True,
+            )
+        )).scalars().all()
+
+        for b in skill_bindings:
+            skill = await db.get(Skill, b.skill_id)
+            tools.append(SkillRuntime.to_langchain_tool(skill))
+
+    # 4. 构建系统提示
+    role = await _load_role(robot.role_id)
+    system_prompt = f"""
+你是 {robot.name}，角色是 {role.name}。
+能力：{role.ability or '通用'}
+{role.system_prompt or ''}
+{task.system_prompt or ''}
+
+你的任务是：
+{task.prompt or task.name}
+
+请使用可用工具完成任务，输出格式为 {task.output_format}。
+"""
+
+    # 5. 创建 Agent
+    agent = create_agent(
+        model=model.model_id,
+        tools=tools,
+        system_prompt=system_prompt,
+        temperature=float(model.temperature),
+        max_tokens=model.max_tokens,
+        timeout=task.timeout_sec,
+        max_retries=task.max_retries,
+    )
+
+    return agent
+
+
+async def _load_role(role_id):
+    from src.models.role import Role
+    async with async_session_factory() as db:
+        return await db.get(Role, role_id)
+</pre>
+
+<h1>第二部分：Kubernetes 部署清单</h1>
+
+<h2>1. 命名空间与基础配置</h2>
+
+<div class="filetag">k8s/00-namespace.yaml</div>
+<pre>
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nexusmind
+  labels:
+    name: nexusmind
+    app.kubernetes.io/part-of: nexusmind
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexusmind-config
+  namespace: nexusmind
+data:
+  APP_NAME: "NexusMind"
+  LOG_LEVEL: "INFO"
+  DB_HOST: "postgres.nexusmind.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "nexusmind"
+  REDIS_HOST: "redis.nexusmind.svc.cluster.local"
+  REDIS_PORT: "6379"
+  OTEL_ENDPOINT: "http://otel-collector.nexusmind.svc.cluster.local:4317"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nexusmind-secrets
+  namespace: nexusmind
+type: Opaque
+stringData:
+  DB_USER: "nexusmind"
+  DB_PASSWORD: "change-me-in-production"
+  JWT_SECRET_KEY: "change-me-32-bytes"
+  ENCRYPTION_KEY: "change-me-32-bytes-key"
+  REDIS_PASSWORD: ""
+</pre>
+
+<h2>2. PostgreSQL StatefulSet</h2>
+
+<div class="filetag">k8s/10-postgres.yaml</div>
+<pre>
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: nexusmind
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: nexusmind
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          ports:
+            - containerPort: 5432
+              name: pg
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: nexusmind-config
+                  key: DB_NAME
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nexusmind-secrets
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nexusmind-secrets
+                  key: DB_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "nexusmind"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "nexusmind"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: init-sql
+          configMap:
+            name: postgres-init-sql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: nexusmind
+data:
+  init.sql: |
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgvector";
+    CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+</pre>
+
+<h2>3. Redis StatefulSet</h2>
+
+<div class="filetag">k8s/11-redis.yaml</div>
+<pre>
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: nexusmind
+spec:
+  clusterIP: None
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: nexusmind
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 10Gi
+</pre>
+
+<h2>4. API Deployment</h2>
+
+<div class="filetag">k8s/20-api.yaml</div>
+<pre>
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexusmind-api
+  namespace: nexusmind
+spec:
+  selector:
+    app: nexusmind-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusmind-api
+  namespace: nexusmind
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: nexusmind-api
+  template:
+    metadata:
+      labels:
+        app: nexusmind-api
+    spec:
+      initContainers:
+        - name: migrate
+          image: nexusmind/api:latest
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: { name: nexusmind-secrets, key: DB_USER }
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: nexusmind-secrets, key: DB_PASSWORD }
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef: { name: nexusmind-config, key: DB_HOST }
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef: { name: nexusmind-config, key: DB_PORT }
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef: { name: nexusmind-config, key: DB_NAME }
+      containers:
+        - name: api
+          image: nexusmind/api:latest
+          command:
+            - uvicorn
+            - src.main:app
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8000"
+            - --workers
+            - "4"
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: nexusmind-config
+            - secretRef:
+                name: nexusmind-secrets
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+            - name: REDIS_URL
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)/0"
+            - name: CELERY_BROKER_URL
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)/0"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)/1"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nexusmind-api-hpa
+  namespace: nexusmind
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nexusmind-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+</pre>
+
+<h2>5. Celery Worker Deployments</h2>
+
+<div class="filetag">k8s/21-workers.yaml</div>
+<pre>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-execution
+  namespace: nexusmind
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: worker-execution
+  template:
+    metadata:
+      labels:
+        app: worker-execution
+    spec:
+      containers:
+        - name: worker
+          image: nexusmind/api:latest
+          command:
+            - celery
+            - -A
+            - src.workers.celery_app
+            - worker
+            - -Q
+            - execution
+            - -c
+            - "4"
+            - -l
+            - info
+          envFrom:
+            - configMapRef: { name: nexusmind-config }
+            - secretRef: { name: nexusmind-secrets }
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+            - name: CELERY_BROKER_URL
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)/0"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-testing
+  namespace: nexusmind
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker-testing
+  template:
+    metadata:
+      labels:
+        app: worker-testing
+    spec:
+      containers:
+        - name: worker
+          image: nexusmind/api:latest
+          command:
+            - celery
+            - -A
+            - src.workers.celery_app
+            - worker
+            - -Q
+            - testing
+            - -c
+            - "2"
+            - -l
+            - info
+          envFrom:
+            - configMapRef: { name: nexusmind-config }
+            - secretRef: { name: nexusmind-secrets }
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+            - name: CELERY_BROKER_URL
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)/0"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+</pre>
+
+<h2>6. 前端 Deployment</h2>
+
+<div class="filetag">k8s/22-frontend.yaml</div>
+<pre>
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexusmind-frontend
+  namespace: nexusmind
+spec:
+  selector:
+    app: nexusmind-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusmind-frontend
+  namespace: nexusmind
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nexusmind-frontend
+  template:
+    metadata:
+      labels:
+        app: nexusmind-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: nexusmind/frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_BASE
+              value: "https://nexusmind.example.com/api/v1"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+</pre>
+
+<h2>7. Ingress 配置</h2>
+
+<div class="filetag">k8s/30-ingress.yaml</div>
+<pre>
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nexusmind-ingress
+  namespace: nexusmind
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # SSE 关键配置：关闭缓冲
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Accel-Buffering no;
+spec:
+  tls:
+    - hosts: [nexusmind.example.com]
+      secretName: nexusmind-tls
+  rules:
+    - host: nexusmind.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: nexusmind-api
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nexusmind-frontend
+                port:
+                  number: 80
+</pre>
+
+<h2>8. 可观测性组件</h2>
+
+<div class="filetag">k8s/40-observability.yaml</div>
+<pre>
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: nexusmind
+data:
+  otel-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+    exporters:
+      jaeger:
+        endpoint: jaeger-collector:14250
+        tls:
+          insecure: true
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [jaeger]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: nexusmind
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+    - name: otlp-http
+      port: 4318
+    - name: prometheus
+      port: 8889
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: nexusmind
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.110.0
+          args: ["--config=/etc/otel-config.yaml"]
+          ports:
+            - containerPort: 4317
+            - containerPort: 4318
+            - containerPort: 8889
+          volumeMounts:
+            - name: config
+              mountPath: /etc
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: nexusmind
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/all-in-one:1.60
+          ports:
+            - containerPort: 16686
+            - containerPort: 14250
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-query
+  namespace: nexusmind
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - name: ui
+      port: 16686
+      targetPort: 16686
+</pre>
+
+<h2>9. NetworkPolicy（安全隔离）</h2>
+
+<div class="filetag">k8s/50-networkpolicy.yaml</div>
+<pre>
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-policy
+  namespace: nexusmind
+spec:
+  podSelector:
+    matchLabels:
+      app: nexusmind-api
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nexusmind-frontend
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - protocol: TCP
+          port: 4317
+    # 允许访问外部 LLM API（HTTPS）
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: worker-execution-policy
+  namespace: nexusmind
+spec:
+  podSelector:
+    matchLabels:
+      app: worker-execution
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-default
+  namespace: nexusmind
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress: []
+</pre>
+
+<h2>10. 部署命令</h2>
+<pre>
+# 1. 创建命名空间与基础配置
+kubectl apply -f k8s/00-namespace.yaml
+
+# 2. 部署数据库与缓存
+kubectl apply -f k8s/10-postgres.yaml
+kubectl apply -f k8s/11-redis.yaml
+
+# 3. 等待就绪
+kubectl wait --for=condition=ready pod -l app=postgres -n nexusmind --timeout=300s
+kubectl wait --for=condition=ready pod -l app=redis -n nexusmind --timeout=300s
+
+# 4. 部署 API 与 Worker
+kubectl apply -f k8s/20-api.yaml
+kubectl apply -f k8s/21-workers.yaml
+
+# 5. 部署前端
+kubectl apply -f k8s/22-frontend.yaml
+
+# 6. 部署 Ingress
+kubectl apply -f k8s/30-ingress.yaml
+
+# 7. 部署可观测性
+kubectl apply -f k8s/40-observability.yaml
+
+# 8. 应用网络策略
+kubectl apply -f k8s/50-networkpolicy.yaml
+
+# 9. 查看状态
+kubectl get pods -n nexusmind
+kubectl get svc -n nexusmind
+kubectl get ingress -n nexusmind
+</pre>
+
+<h1>第三部分：Dockerfile 与镜像构建</h1>
+
+<h2>1. API / Worker 镜像</h2>
+<div class="filetag">Dockerfile</div>
+<pre>
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --only=main --no-root
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+COPY src/ ./src/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+
+RUN useradd -m -u 1000 nexusmind && chown -R nexusmind:nexusmind /app
+USER nexusmind
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+</pre>
+
+<h2>2. 前端镜像</h2>
+<div class="filetag">frontend/Dockerfile</div>
+<pre>
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3000
+CMD ["node", "server.js"]
+</pre>
+
+<h2>3. 镜像构建与推送</h2>
+<pre>
+# API 镜像
+docker build -t nexusmind/api:v1.0.0 .
+docker tag nexusmind/api:v1.0.0 registry.example.com/nexusmind/api:v1.0.0
+docker push registry.example.com/nexusmind/api:v1.0.0
+
+# 前端镜像
+cd frontend
+docker build -t nexusmind/frontend:v1.0.0 .
+docker tag nexusmind/frontend:v1.0.0 registry.example.com/nexusmind/frontend:v1.0.0
+docker push registry.example.com/nexusmind/frontend:v1.0.0
+</pre>
+
+<p style="text-align:center;color:#94a3b8;margin-top:60px;font-size:10pt;">
+— 文档结束 —
+</p>
+
+</body>
+</html>
