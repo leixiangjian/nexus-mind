@@ -242,28 +242,7 @@ python3 -m http.server 8080
 # 访问 http://localhost:8080/nexusmind.html      
 ```
 
-## 七、项目结构
-
-nexusmind.html          # 单文件应用（HTML + CSS + JS）
-├── <style>             # 全部样式（CSS 变量 + 组件样式）
-├── <body>              # DOM 结构
-│   ├── .topbar         # 顶栏（品牌 + 菜单 + 统计）
-│   ├── .home-view      # 主屏（画布 + 能力卡片）
-│   ├── .feature-view   # 六大功能模块
-│   │   ├── mod-config  # 智慧配置中心
-│   │   ├── mod-task    # 工作任务
-│   │   ├── mod-work    # 工作流编排
-│   │   ├── mod-alloc   # 智能分配执行
-│   │   ├── mod-monitor # 监控中心
-│   │   └── mod-report  # 报告大厅
-│   └── .floating-brain # 悬浮大脑
-└── <script>            # 全部逻辑
-    ├── 数据层          # MODELS / VMS / ROLES / ROBOTS / TASKS / WORKS
-    ├── 渲染层          # render* 系列函数
-    ├── 交互层          # 拖拽 / 缩放 / 平移 / 全屏
-    └── 动画层          # Canvas 循环（脸谱 / 背景 / LOGO）
-
-## 八、项目规划
+## 七、项目规划
 
 v0.1.0（当前）✅
 六大模块 UI 与核心交互
@@ -290,7 +269,7 @@ v1.0.0（远期）🎯
 □ 企业级审计与合规
 □ 移动端适配
 
-## 九、贡献指南
+## 八、贡献指南
 
 我们欢迎任何形式的贡献：
 
@@ -302,13 +281,6 @@ v1.0.0（远期）🎯
 
 🔧 提交代码（Fork → Feature Branch → PR）
 
-## 十、许可证
+## 九、许可证
 
 本项目采用 Apache2.0 License 开源。
-
-<div align="center">
-NexusMind · 智慧大脑
-
-Where AI Agents Become a Team
-
-</div> ```

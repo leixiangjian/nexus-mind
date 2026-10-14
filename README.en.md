@@ -238,30 +238,8 @@ Double-click nexusmind.html
 python3 -m http.server 8080
 # Visit http://localhost:8080/nexusmind.html
 ```
-
-## 7. Project Structure
-
-nexusmind.html          # Single-file app (HTML + CSS + JS)
-├── <style>             # All styles (CSS vars + component styles)
-├── <body>              # DOM structure
-│   ├── .topbar         # Top bar (brand + menu + stats)
-│   ├── .home-view      # Home (canvas + ability cards)
-│   ├── .feature-view   # Six functional modules
-│   │   ├── mod-config  # Smart Configuration Center
-│   │   ├── mod-task    # Work Tasks
-│   │   ├── mod-work    # Workflow Orchestration
-│   │   ├── mod-alloc   # Smart Allocation & Execution
-│   │   ├── mod-monitor # Monitoring Center
-│   │   └── mod-report  # Report Hall
-│   └── .floating-brain # Floating Brain
-└── <script>            # All logic
-    ├── Data Layer      # MODELS / VMS / ROLES / ROBOTS / TASKS / WORKS
-    ├── Render Layer    # render* functions
-    ├── Interaction     # Drag / zoom / pan / fullscreen
-    └── Animation       # Canvas loop (face / background / logo)
 	
-	
-## 8. Roadmap
+## 7. Roadmap
 
 v0.1.0 (Current) ✅
 Six module UIs and core interactions
@@ -289,7 +267,7 @@ v1.0.0 (Long-term) 🎯
 □ Mobile adaptation
 
 
-## 9. Contributing
+## 8. Contributing
 
 All forms of contribution are welcome:
 
@@ -301,13 +279,6 @@ All forms of contribution are welcome:
 
 🔧 Submit code (Fork → Feature Branch → PR)
 
-## 10. License
+## 9. License
 
 Licensed under the Apache2.0 License.
-
-<div align="center">
-NexusMind · Wisdom Brain
-
-Where AI Agents Become a Team
-
-</div> ```
