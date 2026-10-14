@@ -27,7 +27,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-/* 顶栏 */
 .topbar{height:58px;flex-shrink:0;display:flex;align-items:center;gap:14px;
   padding:0 20px;border-bottom:1px solid var(--border);
   background:linear-gradient(180deg,rgba(11,17,29,.98),rgba(8,12,21,.92));
@@ -376,7 +375,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .tc-desc{font-size:9.5px;color:var(--txt3);margin-top:4px;
   padding-left:26px;line-height:1.5;}
 
-/* 画布 */
 .canvas-toolbar{height:42px;flex-shrink:0;display:flex;align-items:center;gap:7px;
   padding:0 14px;border-bottom:1px solid var(--border);
   background:linear-gradient(180deg,rgba(11,17,29,.6),rgba(8,12,21,.4));}
@@ -550,8 +548,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .wlb-bar i{display:block;height:100%;border-radius:3px;
   background:linear-gradient(90deg,#3b82f6,#60a5fa);transition:width .6s;}
 .wlb-meta{font-size:9px;color:var(--txt3);font-family:ui-monospace,monospace;flex-shrink:0;}
+.wlb-del{position:absolute;top:5px;right:5px;width:20px;height:20px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.3);
+  color:#ff8ba0;cursor:pointer;opacity:0;transition:.2s;z-index:2;}
+.wlb-card:hover .wlb-del{opacity:1;}
+.wlb-del:hover{background:rgba(244,63,94,.3);}
 
-/* ========== 智能分配 & 监控：自适应画布 ========== */
 .flow-canvas-wrap{flex:1;min-height:0;overflow:hidden;position:relative;background:#050810;
   cursor:grab;}
 .flow-canvas-wrap.grabbing{cursor:grabbing}
@@ -573,14 +576,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   box-shadow:0 0 0 2px rgba(16,224,138,.15),0 6px 20px rgba(16,224,138,.15);}
 .flow-node.pending{border-color:rgba(251,191,36,.5);
   background:linear-gradient(180deg,rgba(251,191,36,.1),#111a2b);}
-.flow-node.running{border-color:var(--tech);
-  box-shadow:0 0 0 3px rgba(59,130,246,.2),0 0 30px rgba(59,130,246,.4);
-  animation:nodePulse 1.5s ease-in-out infinite;}
-.flow-node.done{border-color:rgba(16,224,138,.5);}
-.flow-node.err{border-color:var(--red);
-  background:linear-gradient(180deg,rgba(244,63,94,.12),#111a2b);}
-@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(59,130,246,.2),0 0 24px rgba(59,130,246,.35)}
-  50%{box-shadow:0 0 0 5px rgba(59,130,246,.3),0 0 40px rgba(59,130,246,.55)}}
 .fn-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
 .fn-ic{width:24px;height:24px;border-radius:6px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
@@ -606,7 +601,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   font-size:9px;color:#fcd34d;text-align:center;font-weight:600;
   animation:blink 1.4s infinite}
 
-/* 监控 */
 .mon-canvas{position:absolute;left:0;top:0;
   width:1400px;height:640px;transform-origin:0 0;}
 .mon-node{position:absolute;width:160px;min-height:66px;border-radius:10px;
@@ -618,6 +612,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .mon-node.run{border-color:var(--tech);
   box-shadow:0 0 0 3px rgba(59,130,246,.18),0 0 30px rgba(59,130,246,.4);
   animation:nodePulse 1.5s ease-in-out infinite;}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 0 3px rgba(59,130,246,.18),0 0 24px rgba(59,130,246,.35)}
+  50%{box-shadow:0 0 0 5px rgba(59,130,246,.3),0 0 40px rgba(59,130,246,.55)}}
 .mon-node.ok{border-color:rgba(16,224,138,.6);
   background:linear-gradient(180deg,rgba(16,224,138,.1),#111a2b);}
 .mon-node.err{border-color:var(--red);
@@ -674,7 +670,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .cs-prefix.test{background:rgba(59,130,246,.14);color:#60a5fa}
 .cs-msg{flex:1;color:var(--txt2);word-break:break-all}
 
-/* 报告 */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 .stat-card{padding:13px 15px;border-radius:12px;
   background:linear-gradient(180deg,rgba(18,26,43,.8),rgba(13,19,32,.9));
@@ -736,7 +731,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   border:1px solid var(--border);transition:.3s;}
 .bot-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);}
 
-/* 模态 */
 .modal-mask{position:fixed;inset:0;z-index:9998;display:none;
   align-items:center;justify-content:center;
   background:rgba(2,5,12,.78);backdrop-filter:blur(8px);}
@@ -798,7 +792,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   </header>
 
   <div class="main-container">
-
     <div class="home-view" id="homeView">
       <canvas id="bgScene"></canvas>
       <div class="brain-canvas-wrap">
@@ -813,7 +806,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
     <div class="feature-view" id="featureView">
       <div class="feature-content">
-
         <section class="module" id="mod-config">
           <div class="mod-head">
             <div class="mod-icon">◈</div>
@@ -946,6 +938,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
                 测试验证
               </button>
               <button class="btn btn-sm btn-warn" onclick="activateWork()">激活工作</button>
+              <button class="btn btn-sm btn-danger" id="btnDeleteWork" onclick="deleteWork()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                     stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+                  <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>
+                </svg>
+                删除工作
+              </button>
               <button class="btn btn-sm" id="btnFullscreen" onclick="toggleFullscreen()" title="全屏">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               </button>
@@ -1025,7 +1024,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
           </div>
         </section>
 
-        <!-- ====== 智能分配执行 ====== -->
         <section class="module" id="mod-alloc">
           <div class="mod-head">
             <div class="mod-icon">⚡</div>
@@ -1102,7 +1100,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
           </div>
         </section>
 
-        <!-- ====== 监控中心 ====== -->
         <section class="module" id="mod-monitor">
           <div class="mod-head">
             <div class="mod-icon">📡</div>
@@ -1197,7 +1194,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
           </div>
         </section>
 
-        <!-- ====== 报告大厅（完整版） ====== -->
         <section class="module" id="mod-report">
           <div class="mod-head">
             <div class="mod-icon">📊</div>
@@ -1277,7 +1273,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
             </div>
           </div>
         </section>
-
       </div>
     </div>
 
@@ -1296,7 +1291,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   </div>
 </div>
 
-<!-- 通用模态框 -->
 <div class="modal-mask" id="modalMask">
   <div class="modal-box">
     <div class="modal-head">
@@ -1329,7 +1323,6 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 function nowT(){ const d=new Date(); return [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':'); }
 function nowDate(){ const d=new Date(); return d.toISOString().slice(0,19).replace('T',' '); }
 
-/* 模态 */
 function openModal(title, bodyHTML, footHTML=''){
   $('modalTitle').textContent = title;
   $('modalBody').innerHTML = bodyHTML;
@@ -1477,7 +1470,7 @@ let WORKS = [
   }
 ];
 
-let WORK_STREAM = [];  // 执行流水
+let WORK_STREAM = [];
 
 const state = {
   view:'home', curModule:'config', curSubTab:'model',
@@ -2117,6 +2110,43 @@ function createWork(){
   renderWorkModule(); closeDrawer(); resetInspector();
   toast('已创建工作: '+name, 'ok');
 }
+function deleteWork(){
+  const idx = WORKS.findIndex(w=>w.id === state.curWorkId);
+  if(idx < 0){ toast('请先选择工作','warn'); return; }
+
+  const w = WORKS[idx];
+  if(w.status !== 'inactive' && w.status !== 'draft'){
+    toast(`工作「${w.name}」状态为「${w.status}」，不可删除`,'warn');
+    return;
+  }
+
+  const nodes = w.nodes.length;
+  const msg = nodes
+    ? `确定删除工作「${w.name}」？\n\n此工作包含 ${nodes} 个节点 / ${w.edges.length} 条依赖，删除后不可恢复。`
+    : `确定删除工作「${w.name}」？此操作不可恢复。`;
+  if(!confirm(msg)) return;
+
+  const deletedName = w.name;
+  WORKS.splice(idx, 1);
+
+  state.curWorkId      = WORKS[0]?.id || null;
+  state.curAllocWorkId = WORKS[0]?.id || null;
+  state.curMonWorkId   = WORKS[0]?.id || null;
+
+  state._selNodeId = null;
+  state._selEdgeIdx = null;
+
+  closeDrawer();
+  resetInspector();
+
+  if(state.curAllocWorkId !== w.id) state.allocResult = null;
+
+  renderWorkModule();
+  if($('allocWorkSelect')) renderAllocModule();
+  if($('monWorkSelect'))   renderMonitorModule();
+
+  toast(`已删除工作「${deletedName}」`, 'ok');
+}
 function renderWorkModule(){
   $('workTabs').innerHTML = WORKS.map(w=>`
     <div class="sub-tab ${state.curWorkId===w.id?'active':''}"
@@ -2127,6 +2157,21 @@ function renderWorkModule(){
   renderNodeToolbar();
   renderWorkCanvas();
   updateTestStatusPill();
+  syncDeleteWorkBtn();
+}
+function syncDeleteWorkBtn(){
+  const delBtn = document.getElementById('btnDeleteWork');
+  if(!delBtn) return;
+  const w = WORKS.find(x=>x.id===state.curWorkId);
+  if(!w){
+    delBtn.disabled = true;
+    delBtn.title = '没有选中的工作';
+    return;
+  }
+  const canDelete = (w.status === 'inactive' || w.status === 'draft');
+  delBtn.disabled = !canDelete;
+  delBtn.title = canDelete ? '删除当前工作' :
+    `工作状态为「${w.status}」，已激活/运行中/已完成的工作不可删除`;
 }
 function updateTestStatusPill(){
   const w = WORKS.find(x=>x.id===state.curWorkId);
@@ -2146,7 +2191,9 @@ function updateTestStatusPill(){
   $('testStatusText').textContent = txt;
 }
 function renderWorkListBar(){
-  $('wlbCards').innerHTML = WORKS.map(w=>`
+  $('wlbCards').innerHTML = WORKS.map(w=>{
+    const canDelete = (w.status === 'inactive' || w.status === 'draft');
+    return `
     <div class="wlb-card ${state.curWorkId===w.id?'active':''}"
       onclick="state.curWorkId='${w.id}';state._selNodeId=null;state._selEdgeIdx=null;renderWorkModule();resetInspector()"
       style="--w-color:${w.color}">
@@ -2159,7 +2206,16 @@ function renderWorkListBar(){
         <div class="wlb-bar"><i style="width:${(w._doneNodes/(w.nodes.length||1))*100}%"></i></div>
         <div class="wlb-meta">${w._doneNodes}/${w.nodes.length}</div>
       </div>
-    </div>`).join('');
+      ${canDelete ? `
+        <div class="wlb-del" title="删除工作"
+             onclick="event.stopPropagation();state.curWorkId='${w.id}';deleteWork()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" width="11" height="11">
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+        </div>` : ''}
+    </div>`;
+  }).join('');
 }
 function renderNodeToolbar(){
   const search = ($('taskSearch')?.value||'').toLowerCase();
@@ -2491,7 +2547,7 @@ function initNodeDragGlobal(){
 function openDrawer(){ $('workDrawer').classList.add('open'); }
 function closeDrawer(){ $('workDrawer').classList.remove('open'); }
 
-/* ============ 工作测试验证（新增） ============ */
+/* ============ 工作测试验证 ============ */
 let workTestState = { running:false, aborted:false };
 async function runWorkTest(){
   const work = WORKS.find(w=>w.id===state.curWorkId);
@@ -2513,7 +2569,6 @@ async function runWorkTest(){
                      stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
                   <rect x="6" y="6" width="12" height="12"/></svg> 中止测试`;
 
-  // 打开模态测试进度窗口
   openModal(`测试验证 · ${work.name}`, `
     <div style="display:flex;gap:14px;">
       <div style="flex:1;min-width:0;">
@@ -2531,7 +2586,6 @@ async function runWorkTest(){
     <div id="workTestSummary" style="margin-top:16px;"></div>
   `, `<button class="btn btn-sm" onclick="closeModal()">关闭</button>`);
 
-  // 初始化进度列表
   const progHTML = work.nodes.map(n=>{
     const t = TASKS.find(x=>x.id===n.taskId) || CORE_NODES.find(x=>x.id===n.taskId);
     return `<div class="tc-item" id="wt-${n.id}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;">
@@ -2569,7 +2623,6 @@ async function runWorkTest(){
     wlog('build', `加载流程: ${work.nodes.length} 节点 / ${work.edges.length} 依赖`);
     await wdelay(400);
 
-    // 拓扑排序
     const order = topologicalSort(work);
     wlog('info', `执行顺序: ${order.map(id=>{
       const n = work.nodes.find(x=>x.id===id);
@@ -2590,7 +2643,6 @@ async function runWorkTest(){
       if(role) wlog('build', `  绑定角色: ${role.icon} ${role.name}`);
       await wdelay(500 + Math.random()*700);
 
-      // 简单模拟：任务状态 passed 则通过；如果任务 prompt 为空则失败
       const ok = task.config && task.config.prompt && task.config.prompt.trim();
       if(ok){
         wlog('ok', `  ✓ 节点执行成功`);
@@ -2659,7 +2711,6 @@ async function runWorkTest(){
     updateTestStatusPill();
   }
 }
-
 function activateWork(){
   const w = WORKS.find(x=>x.id===state.curWorkId);
   if(!w) return;
@@ -2667,6 +2718,7 @@ function activateWork(){
   if(w.status === 'active'){ toast('该工作已激活','info'); return; }
   w.status = 'active';
   renderWorkListBar();
+  syncDeleteWorkBtn();
   toast(`工作「${w.name}」已激活`,'ok');
 }
 
@@ -2678,7 +2730,6 @@ function renderAllocModule(){
   renderAllocStats();
   renderIdleBotList();
   drawAllocFlow();
-  // 首次进入自动适应
   setTimeout(fitAllocView, 60);
 }
 function onAllocWorkChange(){
@@ -2807,8 +2858,6 @@ async function analyzeAndAllocate(){
     }, 800);
   }, 800);
 }
-
-/* 智能分配流程图：自适应绘制 */
 function calcLayout(work, W, H, padX, padY){
   const xs = work.nodes.map(n=>n.x);
   const ys = work.nodes.map(n=>n.y);
@@ -2826,7 +2875,6 @@ function calcLayout(work, W, H, padX, padY){
   });
   return posMap;
 }
-
 function drawAllocFlow(){
   const work = WORKS.find(w=>w.id===state.curAllocWorkId);
   const layer = $('allocFlowLayer');
@@ -2843,7 +2891,6 @@ function drawAllocFlow(){
   const W = 1800, H = 900;
   const posMap = calcLayout(work, W, H, 100, 100);
 
-  // 绘制连线
   const defs = `<defs>
     <marker id="allocArrow" viewBox="0 0 10 10" refX="8" refY="5"
       markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -2863,7 +2910,6 @@ function drawAllocFlow(){
   }).join('');
   svg.innerHTML = defs + paths;
 
-  // 绘制节点
   layer.innerHTML = work.nodes.map(n=>{
     const task = TASKS.find(t=>t.id===n.taskId) || CORE_NODES.find(c=>c.id===n.taskId);
     if(!task) return '';
@@ -2901,8 +2947,6 @@ function drawAllocFlow(){
     </div>`;
   }).join('');
 }
-
-/* 智能分配：自适应 fitView */
 function applyAllocTransform(){
   const canvas = $('allocFlowCanvas');
   canvas.style.transform = `translate(${state.allocPanX}px,${state.allocPanY}px) scale(${state.allocZoom})`;
@@ -2981,7 +3025,6 @@ function drawMonCanvas(){
   const svg = $('monSvg');
   if(!canvas || !svg) return;
 
-  // 清掉旧节点与 token
   canvas.querySelectorAll('.mon-node,.bot-token').forEach(el=>el.remove());
 
   if(!work || !work.nodes.length){
@@ -2991,10 +3034,8 @@ function drawMonCanvas(){
   }
   if(empty) empty.style.display = 'none';
 
-  // 计算布局：把源坐标映射到 1400x640 画布
   const posMap = calcLayout(work, 1400, 640, 80, 70);
 
-  // 绘制连线：端点使用右边中点 → 左边中点
   const defs = `<defs>
     <marker id="monArrow" viewBox="0 0 10 10" refX="8" refY="5"
       markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -3004,7 +3045,6 @@ function drawMonCanvas(){
   const paths = work.edges.map(([from,to], i)=>{
     const p1 = posMap[from], p2 = posMap[to];
     if(!p1 || !p2) return '';
-    // 节点宽160 高66
     const x1 = p1.x + 160, y1 = p1.y + 33;
     const x2 = p2.x, y2 = p2.y + 33;
     const cx = (x1+x2)/2;
@@ -3016,7 +3056,6 @@ function drawMonCanvas(){
   }).join('');
   svg.innerHTML = defs + paths;
 
-  // 绘制节点
   const nodeHTML = work.nodes.map(n=>{
     const t = TASKS.find(x=>x.id===n.taskId) || CORE_NODES.find(x=>x.id===n.taskId);
     if(!t) return '';
@@ -3038,7 +3077,6 @@ function drawMonCanvas(){
   }).join('');
   canvas.insertAdjacentHTML('beforeend', nodeHTML);
 
-  // 保存位置
   state.monNodeEls = {};
   work.nodes.forEach(n=>{ state.monNodeEls[n.id] = { pos: posMap[n.id] }; });
 
@@ -3103,13 +3141,11 @@ function initMonPan(){
   }, { passive:false });
   window.addEventListener('resize', ()=>setTimeout(fitMonView, 80));
 }
-
 async function startMonExecution(){
   const work = WORKS.find(w=>w.id===state.curMonWorkId);
   if(!work || !work.nodes.length){ toast('请选择有效工作','warn'); return; }
   if(state.monRunning){ toast('已在执行中','warn'); return; }
 
-  // 若无分配结果，自动生成
   if(!state.allocResult || state.curAllocWorkId !== work.id){
     state.allocResult = {};
     ROBOTS.forEach(b=>{ if(b.status!=='busy') b.status='idle'; });
@@ -3152,8 +3188,6 @@ async function startMonExecution(){
   $('monLogCount').textContent = 0;
 
   ROBOTS.forEach(b=>{ if(b.status==='busy') b.status='idle'; });
-
-  // 重绘画布
   drawMonCanvas();
 
   const mlog = (type, msg)=>{
@@ -3182,7 +3216,6 @@ async function startMonExecution(){
   }).join(' → ')}`);
   await sleep(500);
 
-  // 记录开始时间
   const t0 = Date.now();
   const timer = setInterval(()=>{
     if(!state.monPaused && !state.monAborted){
@@ -3190,7 +3223,6 @@ async function startMonExecution(){
     }
   }, 100);
 
-  // 生成机器人 token
   const botTokens = {};
   work.nodes.forEach(n=>{
     const alloc = state.allocResult[n.id];
@@ -3209,7 +3241,6 @@ async function startMonExecution(){
   });
   renderMonBotList(botTokens);
 
-  // 依次执行
   for(const nodeId of order){
     if(state.monAborted) break;
     while(state.monPaused && !state.monAborted){ await sleep(200); }
@@ -3227,7 +3258,6 @@ async function startMonExecution(){
     if(alloc && alloc.botId && botTokens[alloc.botId]){
       const token = botTokens[alloc.botId];
       const pos = state.monNodeEls[node.id].pos;
-      // token 定位到节点中心偏上
       token.el.style.left = (pos.x + 160/2 - 18) + 'px';
       token.el.style.top  = (pos.y - 18) + 'px';
       token.el.classList.add('visible');
@@ -3270,7 +3300,6 @@ async function startMonExecution(){
     work.status = 'done';
   }
 
-  // 写入流水
   WORK_STREAM.unshift({
     id: uid('S'),
     workId: work.id,
@@ -3294,8 +3323,8 @@ async function startMonExecution(){
 
   setTimeout(()=>{ ROBOTS.forEach(b=>{ b.status='idle'; }); renderIdleBotList(); }, 1500);
   renderWorkListBar();
+  syncDeleteWorkBtn();
 }
-
 function topologicalSort(work){
   const indeg = {};
   const adj = {};
@@ -3313,7 +3342,6 @@ function topologicalSort(work){
   }
   return order;
 }
-
 function renderMonBotList(botTokens){
   const list = $('monBotList');
   const bots = Object.values(botTokens || {});
@@ -3336,7 +3364,6 @@ function renderMonBotList(botTokens){
     </div>`;
   }).join('');
 }
-
 function toggleMonPause(){
   if(!state.monRunning) return;
   state.monPaused = !state.monPaused;
@@ -3369,12 +3396,11 @@ function stopMonExecution(){
   toast('正在停止…','warn');
 }
 
-/* ============ 报告大厅（完整版） ============ */
+/* ============ 报告大厅 ============ */
 function renderReport(){
   const statusFilter = $('rpFilterStatus')?.value || 'all';
   const rangeFilter = $('rpFilterRange')?.value || 'all';
 
-  // 统计
   const running = WORKS.filter(w=>w.status==='running').length;
   const done = WORKS.filter(w=>w.status==='done').length;
   const activeBots = ROBOTS.filter(b=>b.status==='busy').length;
@@ -3387,7 +3413,6 @@ function renderReport(){
   $('rpActiveBots').textContent = activeBots;
   $('rpAvgRate').textContent = avgRate;
 
-  // 过滤工作
   let filtered = WORKS.slice();
   if(statusFilter !== 'all') filtered = filtered.filter(w=>w.status===statusFilter);
   if(rangeFilter === 'today'){
@@ -3395,7 +3420,6 @@ function renderReport(){
     filtered = filtered.filter(w => (w.createdAt||'').startsWith(today) || w.status!=='inactive');
   }
 
-  // 工作实时进度卡片
   $('rpLiveWorks').innerHTML = filtered.length ? filtered.map(w=>`
     <div class="report-live-card ${w.status}" onclick="showWorkDetail('${w.id}')">
       <div class="rlc-head">
@@ -3432,7 +3456,6 @@ function renderReport(){
 
   $('rpLiveCount').textContent = filtered.length + ' 个';
 
-  // 机器人实时状态
   $('rpBotStatus').innerHTML = ROBOTS.map(b=>{
     const r = ROLES.find(x=>x.id===b.roleId);
     const isBusy = b.status === 'busy';
@@ -3447,7 +3470,6 @@ function renderReport(){
   }).join('');
   $('rpBotCount').textContent = ROBOTS.length + ' 个';
 
-  // 执行流水
   $('rpStream').innerHTML = WORK_STREAM.length ? WORK_STREAM.map(s=>`
     <div class="report-stream-row">
       <div class="rsr-top">
@@ -3814,7 +3836,6 @@ window.addEventListener('load', ()=>{
 
   updateConsoleTag('idle');
 
-  // 窗口尺寸变化时重新适应
   window.addEventListener('resize', ()=>{
     if(state.curModule==='alloc') fitAllocView();
     if(state.curModule==='monitor') fitMonView();
